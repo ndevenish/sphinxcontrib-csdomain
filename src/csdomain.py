@@ -16,6 +16,16 @@ _whitespace_re = re.compile(r'\s+(?u)')
 def valid_identifier(string):
   return _identifier_re.match(string) is not None
 
+class DefinitionError(Exception):
+    def __init__(self, description):
+        self.description = description
+
+    def __str__(self):
+        return unicode(self).encode('utf-8')
+
+    def __unicode__(self):
+        return self.description
+
 class DefinitionParser(object):
   def __init__(self, definition):
     self.definition = definition.strip()
@@ -23,6 +33,11 @@ class DefinitionParser(object):
     self.end = len(self.definition)
     self.last_match = None
     self._previous_state = (0, None)
+
+  def fail(self, msg):
+      raise DefinitionError(
+        'Invalid definition: {} [error at {}]\n  {}\n  {}^here'
+          .format(msg, self.pos, self.definition, " "*(self.pos)))
 
   def skip_word(self, word):
     return self.match(re.compile(r'\b%s\b' % re.escape(word)))
@@ -36,6 +51,9 @@ class DefinitionParser(object):
       return True
     return False
 
+  def backout(self):
+      self.pos, self.last_match = self._previous_state
+
   def match(self, regex):
     match = regex.match(self.definition, self.pos)
     if match is not None:
@@ -45,70 +63,79 @@ class DefinitionParser(object):
       return True
     return False
 
-  def parse_class(self):
-    visibility, static = self._parse_visibility_static()
-    # Skip the word class
-    self.skip_word_and_ws("class")
-    # Now, the type name
-    name = self._parse_type()    
-
-
-  def _parse_visibility_static(self):
-    static = self.skip_word_and_ws('static')
-    visibility = 'public'
-    if self.match(_visibility_re):
-        visibility = self.matched_text
-    # If we didn't get static already, look again
-    if not static:
-      static = self.skip_word_and_ws('static')
-    return visibility, static
-
-  def _parse_type(self, in_template=False):
-    result = []
-    # This is where modifiers might be checked for... none for now
-    
-    # Loop, eating all path qualifiers
-    while 1:
-      self.skip_ws()
-      if  (in_template and self.current_char in ',>') or \
-          (result and not self.skip_string('.')) or self.eof:
-          break
-      result.append(self._parse_type_expr(in_template))
-
-  def _parse_type_expr(self, in_template=False):
-      typename = self._parse_name_or_template_arg(in_template)
-      self.skip_ws()
-      if not self.skip_string('<'):
-          return typename
-
-      args = []
-      while 1:
-          self.skip_ws()
-          if self.skip_string('>'):
-              break
-          if args:
-              if not self.skip_string(','):
-                  self.fail('"," or ">" in template expected')
-              self.skip_ws()
-          args.append(self._parse_type(True))
-      return TemplateDefExpr(typename, args)
-
-  def _parse_name_or_template_arg(self, in_template):
-    if not self.match(_identifier_re):
-      if not in_template:
-        self.fail('expected name')
-      if not self.match(_identifier_re):
-        self.fail('expected name or constant template argument')
-      return ConstantTemplateArgExpr(self.matched_text.strip())
-    identifier = self.matched_text
-
-    return NameDefExpr(identifier)
-
-
   @property
   def matched_text(self):
     if self.last_match is not None:
       return self.last_match.group()
+
+  @property
+  def eof(self):
+      return self.pos >= self.end
+
+  def parse_class(self):
+    self._parse_class_modifiers()
+    visibility, static = self._parse_visibility_static()
+    # Skip the word partial, and class
+    partial = self.skip_word_and_ws("partial")
+    if not self.skip_word_and_ws("class"):
+      self.fail("invalid class definition")
+    # The Class Name
+    self.match(_identifier_re)
+    name = self.matched_text
+
+    # Optional type-parameter list
+    generic = self.skip_word_and_ws('<')
+    generic_params = []
+    if generic:
+      # List of identifiers, ended with >
+      while not self.match(re.compile(r'>')):
+        match = self.match(_identifier_re)
+        generic_params.append(self.matched_text)
+        self.match(re.compile(r','))
+        self.skip_ws()
+      self.skip_ws()
+
+
+    # Print a summary of all information
+    print "Visibility: " + visibility
+    print "Static:     {}".format(static)
+    print "Partial:    {}".format(partial)
+    print "ClassName:  {}".format(name)
+    print "Generic:    {}".format(generic)
+    if (generic):
+      print "   Args:    {}".format(", ".join(generic_params))
+
+
+
+  def _parse_class_modifiers(self):
+    """Parse any valid class modifiers"""
+    valid_modifiers = ('new', 'public', 'protected', 'internal', 'private',
+                 'abstract', 'sealed', 'static', 'type')
+    modifiers = []
+    self.match(_identifier_re)
+    modifier = self.matched_text
+    while modifier in valid_modifiers:
+      modifiers.append(modifier)
+      self.skip_ws()
+      self.match(_identifier_re)
+      modifier = self.matched_text  
+    self.backout()
+    return modifiers
+
+  def _parse_visibility_static(self):
+    """Extract if the class is static, and it's visibility"""
+    modifiers = self._parse_class_modifiers()
+    static = 'static' in modifiers
+
+    # Extract any visibility modifiers from this
+    vis_modifiers = ('public', 'protected', 'private', 'internal')
+    visibility = set(modifiers).intersection(set(vis_modifiers))
+    if len(visibility) == 0:
+      visibility = "public"
+    else:
+      visibility = visibility.pop()
+
+    return visibility, static
 
 class CSObject(ObjectDescription):
   

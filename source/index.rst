@@ -14,7 +14,7 @@ Contents:
 
 .. cs:namespace:: StylePack.Utils
 
-.. cs:class:: public class ViewModel<T> : IViewModel, IEditableObject, INotifyDataErrorInfo where T : class, IModelClass, new()
+.. cs:class:: public class ViewModel<T, Q> : IViewModel, IEditableObject, INotifyDataErrorInfo where T : class, IModelClass, new()
 
   The parent ViewModel
 
