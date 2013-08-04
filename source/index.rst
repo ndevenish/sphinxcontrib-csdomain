@@ -12,6 +12,8 @@ Contents:
    :maxdepth: 2
 
 
+.. cs:namespace:: StylePack.Utils
+
 
 Indices and tables
 ==================
