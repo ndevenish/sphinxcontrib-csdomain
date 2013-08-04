@@ -88,6 +88,19 @@ class DefinitionParser(object):
   def eof(self):
       return self.pos >= self.end
 
+
+  def _parse_type_parameter_list(self):
+    """Parses a <T, Q, ...> type parameter list. Empty for none."""
+    generic = self.skip_character_and_ws('<')
+    generic_params = []
+    if generic:
+      generic_params = self.parse_comma_list(['>'])
+      self.skip_character_and_ws('>')
+    return generic_params
+
+
+
+
   def parse_comma_list(self, terminators):
     """Parses a list of comma separated identifiers, terminated by some set"""
     results = []
@@ -101,8 +114,36 @@ class DefinitionParser(object):
       self.backout()
     return results
 
+  def parse_method(self):
+    modifiers = self._parse_method_modifiers()
+    self.skip_word_and_ws('partial')
+    returntype = self._parse_returntype()
+    
+    # The member name
+    self.match(_identifier_re)
+    name = self.matched_text
+
+    type_parameter_list = self._parse_type_parameter_list()
+
+    raise NotImplementedError("Need to read formal parameter list")
+
+    constraints = self._parse_type_parameter_constraints_clauses()
+
+
+    print "Parsing Method:"
+    print "Modifiers: {}".format(", ".join(modifiers))
+    print "Return:    {}".format(returntype)
+    print "Name:      {}".format(name)
+
+
+#     partialopt return-type member-name type-parameter-listopt
+# ( formal-parameter-listopt ) type-parameter-constraints-clausesopt
+
   def parse_class(self):
-    visibility, static = self._parse_visibility_static()
+    modifiers = self._parse_class_modifiers()
+    static = 'static' in modifiers
+    visibility = self._find_visibility(modifiers)
+
     # Skip the word partial, and class
     partial = self.skip_word_and_ws("partial")
     if not self.skip_word_and_ws("class"):
@@ -112,11 +153,8 @@ class DefinitionParser(object):
     name = self.matched_text
 
     # Optional type-parameter list
-    generic = self.skip_character_and_ws('<')
-    generic_params = []
-    if generic:
-      generic_params = self.parse_comma_list(['>'])
-      self.skip_character_and_ws('>')
+    generic_params = self._parse_type_parameter_list()
+    generic = len(generic_params) > 0
 
     class_bases = []
     # (Optional) Class-bases next, starting with :
@@ -125,24 +163,24 @@ class DefinitionParser(object):
 
     # Optional type-parameter-constraints
     self.skip_ws()
-    parameter_constraints = {}
-    while self.skip_word_and_ws("where"):
-      self.match(_identifier_re)
-      parameter_name = self.matched_text
-      # Check that this is in the argument list
-      if not parameter_name in generic_params:
-        fail("Class Type-Argument mismatch: Constraint on non-class parameter")
-      self.skip_ws()
-      self.skip_character_and_ws(":")
-      print "State: " + self.definition[self.pos:]
-      parameter_constraint_list = self.parse_comma_list(("where", "{"))
-      # If we ended with new, swallow the ()
-      if parameter_constraint_list[-1] == "new":
-        self.skip_character('(')
-        self.skip_character_and_ws(')')
-        parameter_constraint_list[-1] = 'new()'
+    parameter_constraints = self._parse_type_parameter_constraints_clauses()
+    # parameter_constraints = {}
+    # while self.skip_word_and_ws("where"):
+    #   self.match(_identifier_re)
+    #   parameter_name = self.matched_text
+    #   # Check that this is in the argument list
+    #   if not parameter_name in generic_params:
+    #     fail("Class Type-Argument mismatch: Constraint on non-class parameter")
+    #   self.skip_ws()
+    #   self.skip_character_and_ws(":")
+    #   parameter_constraint_list = self.parse_comma_list(("where", "{"))
+    #   # If we ended with new, swallow the ()
+    #   if parameter_constraint_list[-1] == "new":
+    #     self.skip_character('(')
+    #     self.skip_character_and_ws(')')
+    #     parameter_constraint_list[-1] = 'new()'
 
-      parameter_constraints[parameter_name] = parameter_constraint_list
+    #   parameter_constraints[parameter_name] = parameter_constraint_list
 
 
 
@@ -172,15 +210,40 @@ class DefinitionParser(object):
       'typearg_constraints': parameter_constraints
     }
 
+  def _parse_type_parameter_constraints_clauses(self):
+    parameter_constraints = {}
+    while self.skip_word_and_ws("where"):
+      self.match(_identifier_re)
+      parameter_name = self.matched_text
+      self.skip_ws()
+      self.skip_character_and_ws(":")
+      parameter_constraint_list = self.parse_comma_list(("where", "{"))
+      # If we ended with new, swallow the ()
+      if parameter_constraint_list[-1] == "new":
+        self.skip_character('(')
+        self.skip_character_and_ws(')')
+        parameter_constraint_list[-1] = 'new()'
+
+      parameter_constraints[parameter_name] = parameter_constraint_list
+    return parameter_constraints
+    
   def _parse_class_modifiers(self):
     """Parse any valid class modifiers"""
     valid_modifiers = ('new', 'public', 'protected', 'internal', 'private',
-                 'abstract', 'sealed', 'static', 'type')
+                       'abstract', 'sealed', 'static', 'type')
+    return self._parse_modifiers(valid_modifiers)
+
+  def _parse_method_modifiers(self):
+    valid_modifiers = ('new', 'public', 'protected', 'internal', 'private',
+                       'static', 'virtual', 'sealed', 'override', 'abstract',
+                       'extern')
+    return self._parse_modifiers(valid_modifiers)
+
+  def _parse_modifiers(self, valid_modifiers):
     modifiers = []
     self.skip_ws()
     while self.match(_identifier_re):
       modifier = self.matched_text
-      print "Testing " + modifier + "({})".format(modifier in valid_modifiers)
       if modifier in valid_modifiers:
         modifiers.append(modifier)
         self.skip_ws()
@@ -189,12 +252,17 @@ class DefinitionParser(object):
         break
     return modifiers
 
-  def _parse_visibility_static(self):
-    """Extract if the class is static, and it's visibility"""
-    modifiers = self._parse_class_modifiers()
-    print "{} modifiers: {}".format(len(modifiers), ",".join(modifiers))
-    static = 'static' in modifiers
+  def _parse_returntype(self):
+    if (self.skip_word_and_ws('void')):
+      return 'void'
+    return self._parse_type()
 
+  def _parse_type(self):
+    """Parses a 'type'. Only simple, for now"""
+    self.match(_identifier_re)
+    return self.matched_text
+
+  def _find_visibility(self, modifiers):
     # Extract any visibility modifiers from this
     vis_modifiers = ('public', 'protected', 'private', 'internal')
     visibility = set(modifiers).intersection(set(vis_modifiers))
@@ -202,8 +270,7 @@ class DefinitionParser(object):
       visibility = "public"
     else:
       visibility = visibility.pop()
-
-    return visibility, static
+    return visibility
 
 class CSObject(ObjectDescription):
   pass  
@@ -234,7 +301,6 @@ class CSClassObject(CSObject):
     info = parser.parse_class()
 
     namespace = self.env.temp_data.get('cs:namespace')
-    print namespace
 
         # modname = self.options.get(
         #     'module', self.env.temp_data.get('py:module'))
@@ -296,7 +362,10 @@ class CSClassObject(CSObject):
 
 
 class CSMethodObject(CSObject):
-  pass
+  def handle_signature(self, sig, signode):
+    parser = DefinitionParser(sig)
+    info = parser.parse_method()
+
 
 class CSCurrentNamespace(Directive):
   """
