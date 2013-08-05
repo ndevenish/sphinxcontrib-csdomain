@@ -98,17 +98,36 @@ class DefinitionParser(object):
       self.skip_character_and_ws('>')
     return generic_params
 
+  def _parse_type_argument_list(self):
+    """Parses a <Type, Type,...> argument list. Empty for None."""
+    generic = self.skip_character_and_ws('<')
+    generic_params = []
+    if generic:
+      generic_params = self.parse_comma_list(['>'], self._parse_type)
+      self.skip_character_and_ws('>')
+    return generic_params    
 
 
 
-  def parse_comma_list(self, terminators):
+  def parse_comma_list(self, terminators, parser=None):
     """Parses a list of comma separated identifiers, terminated by some set"""
+    if parser is None:
+      parser = self._parse_identifier
     results = []
-    while self.match(_identifier_re):
-      if self.matched_text in terminators:
+    match = None
+    try:
+      match = parser()
+    except DefinitionError:
+      match = None
+    while match:
+      if match in terminators:
         break
       results.append(self.matched_text)
       self.skip_character_and_ws(',')
+      try:
+        match = parser()
+      except DefinitionError:
+        match = None
     # Step backwards if we broke early
     if self.matched_text in terminators:
       self.backout()
@@ -120,20 +139,37 @@ class DefinitionParser(object):
     returntype = self._parse_returntype()
     
     # The member name
-    self.match(_identifier_re)
-    name = self.matched_text
+    name = self._parse_member_name()
 
+    self.skip_character_and_ws('(')
+    arguments = self._parse_formal_argument_list()
+    self.skip_character_and_ws(')')
+    # (
+    # formal-parameter-listopt
+    # )
     type_parameter_list = self._parse_type_parameter_list()
 
-    raise NotImplementedError("Need to read formal parameter list")
+    #raise NotImplementedError("Need to read formal parameter list")
 
     constraints = self._parse_type_parameter_constraints_clauses()
 
 
     print "Parsing Method:"
-    print "Modifiers: {}".format(", ".join(modifiers))
-    print "Return:    {}".format(returntype)
-    print "Name:      {}".format(name)
+    print "  Modifiers: {}".format(", ".join(modifiers))
+    print "  Return:    {}".format(returntype)
+    print "  Name:      {}".format(name)
+    print "  Arguments: {}".format(len(arguments))
+    for arg in arguments:
+      argspec = ""
+      if arg['attributes']:
+        argspec += "["
+        for attr in arg['attributes']:
+          argspec += ", ".join(attr["attributes"])
+        argspec += "] "
+      if arg['modifiers']:
+        argspec += " ".join(arg['modifiers']) + " "
+      # argspec += arg['type'] + ' ' + arg['name']
+      print "    {}{} {}".format(argspec, arg['type'], arg['name'])
 
 
 #     partialopt return-type member-name type-parameter-listopt
@@ -186,19 +222,18 @@ class DefinitionParser(object):
 
     # Print a summary of all information
 
-    print "Remaining:  " + self.definition[self.pos:]
-
-    print "Visibility: " + visibility
-    print "Static:     {}".format(static)
-    print "Partial:    {}".format(partial)
-    print "ClassName:  {}".format(name)
-    print "Generic:    {}".format(generic)
+    print "Parsing Class:"
+    print "  Visibility: " + visibility
+    print "  Static:     {}".format(static)
+    print "  Partial:    {}".format(partial)
+    print "  ClassName:  {}".format(name)
+    print "  Generic:    {}".format(generic)
     if (generic):
-      print "   Args:    {}".format(", ".join(generic_params))
+      print "     Args:    {}".format(", ".join(generic_params))
       for arg in [x for x in generic_params if parameter_constraints.has_key(x)]:
-        print "   Arg {}:   {}".format(arg, parameter_constraints[arg])
+        print "     Arg {}:   {}".format(arg, parameter_constraints[arg])
     if len(class_bases) > 0:
-      print "Bases:      {}".format(", ".join(class_bases))
+      print "  Bases:      {}".format(", ".join(class_bases))
 
     return {
       'visibility': visibility,
@@ -208,6 +243,48 @@ class DefinitionParser(object):
       'typeargs': generic_params,
       'bases': class_bases,
       'typearg_constraints': parameter_constraints
+    }
+
+  def _parse_identifier(self):
+    match = self.match(_identifier_re)
+    if not match:
+      raise DefinitionError("Could not parse. Expected: Identifier. Got: " + self.definition[self.pos:])
+    value = self.matched_text
+    self.skip_ws()
+    return value
+
+  def _parse_member_name(self):
+    return self._parse_identifier()
+
+  def _parse_formal_argument_list(self):
+    arguments = []
+    while (not self.skip_character(')')) and (not self.eof):
+      argument = self._parse_fixed_parameter()
+      arguments.append(argument)
+      self.skip_character_and_ws(',')
+    self.backout()
+    return arguments
+
+
+  def _parse_fixed_parameter(self):
+    # Attributes....
+    attributes = self._parse_attributes()
+
+    #attributesopt  type identifier default-argumentopt
+    modifiers = self._parse_modifiers(("ref", "out", "this"))
+    paramtype = self._parse_type()
+    name = self._parse_identifier()
+    expression = None
+    if self.skip_character_and_ws('='):
+      # For now, skip until the next , or )
+      self.match(re.compile(r'[^,)]+'))
+      expression = self.matched_text
+    return {
+      'attributes': attributes,
+      'modifiers': modifiers,
+      'type': paramtype,
+      'name': name,
+      'default': expression
     }
 
   def _parse_type_parameter_constraints_clauses(self):
@@ -257,10 +334,87 @@ class DefinitionParser(object):
       return 'void'
     return self._parse_type()
 
+  def _parse_attributes(self):
+    attrs = []
+    while self.skip_character('['):
+      self.backout()
+      attrs.append(self._parse_attribute_section())
+      self.skip_ws()
+    return attrs
+
+  def _parse_attribute_section(self):
+    self.skip_character_and_ws('[')
+    
+    # Do we have an attribute target specifier?
+    specifiers = ['field', 'event', 'method', 'param', 'property', 'return', 'type']
+    self.match(_identifier_re)
+    target = None
+    if self.matched_text in specifiers:
+      target = self.matched_text
+      self.skip_ws()
+      self.skip_character_and_ws(':')
+    else:
+      self.backout()
+
+    # Now, the main attribute list: One or more attributes, separated by commas
+    attributes = self.parse_comma_list([r']'], self._parse_attribute)
+    self.skip_character_and_ws(']')
+    return {
+      'target': target,
+      'attributes': attributes
+    }
+
+  def _parse_attribute(self):
+    name = self._parse_type_name()
+    arguments = self._parse_attribute_arguments()
+    return {
+      'name': name,
+      'args': arguments,
+    }
+
+  def _parse_attribute_arguments(self):
+    if not self.skip_character_and_ws('('):
+      return []
+    # Skip anything until the end )
+    self.match(re.compile(r"[^)]*"))
+    value = self.matched_text
+    self.skip_character_and_ws(')')
+    return value
+
+  def _parse_type_name(self):
+    return self._parse_namespace_or_type_name()
+
+  def _parse_namespace_name(self):
+    return self._parse_namespace_or_type_name()
+
+  def _parse_namespace_or_type_name(self):
+    # Effectively, list of .-separated identifier/type-argument-list pairs
+    name = {}
+    name['name'] = self._parse_identifier()
+    name['args'] = self._parse_type_argument_list()
+    if len(name['args']):
+      name['full'] = "{}<{}>".format(name['name'], ', '.join(name['args']))
+    else:
+      name['full'] = name['name']
+
+    names = [name]
+    if self.skip_character_and_ws('.'):
+      # Grab another namespace
+      names.extend(self._parse_namespace_or_type_name)
+    return names
+
   def _parse_type(self):
     """Parses a 'type'. Only simple, for now"""
     self.match(_identifier_re)
-    return self.matched_text
+    match = self.matched_text
+    self.skip_ws()
+    return match
+
+# identifier type-argument-listopt
+# namespace-or-type-name . identifier type-argument-listopt qualified-alias-member
+
+
+
 
   def _find_visibility(self, modifiers):
     # Extract any visibility modifiers from this
