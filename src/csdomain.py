@@ -197,12 +197,8 @@ class DefinitionParser(object):
     if parser is None:
       parser = self._parse_identifier
     results = []
-    # try:
-    #   match = parser()
-    # except DefinitionError:
-    #   match = None
-    # Try to grab an identifier first
 
+    # Try to grab an identifier first
     while self.match(_identifier_re):
       matched_text = self.matched_text
       self.backout()
@@ -236,9 +232,6 @@ class DefinitionParser(object):
 
     return method
 
-#     partialopt return-type member-name type-parameter-listopt
-# ( formal-parameter-listopt ) type-parameter-constraints-clausesopt
-
   def parse_class(self):
 
     modifiers = self._parse_class_modifiers()
@@ -265,28 +258,8 @@ class DefinitionParser(object):
     # Optional type-parameter-constraints
     self.skip_ws()
     parameter_constraints = self._parse_type_parameter_constraints_clauses()
-    # parameter_constraints = {}
-    # while self.skip_word_and_ws("where"):
-    #   self.match(_identifier_re)
-    #   parameter_name = self.matched_text
-    #   # Check that this is in the argument list
-    #   if not parameter_name in generic_params:
-    #     fail("Class Type-Argument mismatch: Constraint on non-class parameter")
-    #   self.skip_ws()
-    #   self.skip_character_and_ws(":")
-    #   parameter_constraint_list = self.parse_comma_list(("where", "{"))
-    #   # If we ended with new, swallow the ()
-    #   if parameter_constraint_list[-1] == "new":
-    #     self.skip_character('(')
-    #     self.skip_character_and_ws(')')
-    #     parameter_constraint_list[-1] = 'new()'
-
-    #   parameter_constraints[parameter_name] = parameter_constraint_list
-
-
 
     # Print a summary of all information
-
     print "Parsing Class:"
     print "  Visibility: " + visibility
     print "  Static:     {}".format(static)
