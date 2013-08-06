@@ -13,29 +13,79 @@ _identifier_re = re.compile(r'(~?\b[a-zA-Z_][a-zA-Z0-9_]*)\b')
 # _visibility_re = re.compile(r'\b(public|private|protected)\b')
 _whitespace_re = re.compile(r'\s+(?u)')
 
+class MethodInfo(object):
+  _attributes = []
+  _modifiers = []
+  _name = None
+  _return_type = None
+  _arguments = None
+
+class AttributeSectionInfo(object):
+  _target = None
+  _attributes = []
+
+  def __str__(self):
+    fs = "["
+    if self._target:
+      fs += "{} : ".format(self._target)
+    attrlist = [str(x) for x in self._attributes]
+    fs += ", ".join(attrlist)
+    fs += "]"
+    return fs
+
+class AttributeInfo(object):
+  _name = None
+  _arguments = []
+
+  def __str__(self):
+    fs = str(self._name)
+    if len(self._arguments):
+      fs += "(" + ", ".join(self._arguments) + ")"
+    return fs
+
+class TypeInfo(object):
+  _name = None
+  _arguments = None
+  _full = None
+  _namespace = None
+
+  def __init__(self, name, arguments=[]):
+    self._name = name
+    self._arguments = arguments
+    # if arguments is None:
+    #   self._arguments = []
+    # else:
+    #   self._arguments = arguments
+
+    if len(self._arguments):
+      self._full = "{}<{}>".format(_name, ', '.join(_arguments))
+    else:
+      self._full = name
+
+  def fqn(self):
+    alln = [self._full]
+    if self._namespace:
+      alln = self._namespace.fqn() + [self._full]
+    return ".".join(alln)
+
+  def __str__(self):
+    return self.fqn()
+
+  def __repr__(self):
+    return "<Type: {}>".format(self._full)
+
 def valid_identifier(string):
   return _identifier_re.match(string) is not None
 
 def full_type_name(type_name):
   """Returns a type name list to a full string"""
-  return ".".join(x['full'] for x in type_name)
+  return type_name
+  # return ".".join(x['full'] for x in type_name)
 
 def full_attribute_name(attribute_info):
   """Returns an attribute dictionary to a full string"""
-  for section in attribute_info:
-    name = "["
-    if section['target']:
-      name += "{} : ".format(section['target'])
-    attributelist = []
-    for attr in section['attributes']:
-      # Build the full attribute
-      fulla = full_type_name(attr['name'])
-      if len(attr['args']):
-        fulla += "(" + ", ".join(attr['args']) + ")"
-      attributelist.append(fulla)
-    name += ", ".join(attributelist)
-    name += "]"
-    return name
+
+  return " ".join(str(x) for x in attribute_info)
 
 
 class DefinitionError(Exception):
@@ -72,6 +122,11 @@ class DefinitionParser(object):
       self.skip_ws()
       return True
     return False
+
+  def swallow_character_and_ws(self, char):
+    """Skips a character and any trailing whitespace, but raises DefinitionError if not found"""
+    if not self.skip_character_and_ws(char):
+      raise DefinitionError("Unexpected token: '{}'; Expected '{}'".format(self.definition[self.pos], char))
 
   def skip_ws(self):
     return self.match(_whitespace_re)
@@ -156,32 +211,15 @@ class DefinitionParser(object):
     return results
 
   def parse_method(self):
-    modifiers = self._parse_method_modifiers()
-    self.skip_word_and_ws('partial')
-    returntype = self._parse_returntype()
+    method = self._parse_method_header()
     
-    # The member name
-    name = self._parse_member_name()
-
-    self.skip_character_and_ws('(')
-    arguments = self._parse_formal_argument_list()
-    self.skip_character_and_ws(')')
-    # (
-    # formal-parameter-listopt
-    # )
-    type_parameter_list = self._parse_type_parameter_list()
-
-    #raise NotImplementedError("Need to read formal parameter list")
-
-    constraints = self._parse_type_parameter_constraints_clauses()
-
-
+    print method
     print "Parsing Method:"
-    print "  Modifiers: {}".format(", ".join(modifiers))
-    print "  Return:    {}".format(returntype)
-    print "  Name:      {}".format(name)
-    print "  Arguments: {}".format(len(arguments))
-    for arg in arguments:
+    print "  Modifiers: {}".format(", ".join(method._modifiers))
+    print "  Return:    {}".format(method._return_type)
+    print "  Name:      {}".format(method._name)
+    print "  Arguments: {}".format(len(method._arguments))
+    for arg in method._arguments:
       argspec = ""
       if arg['attributes']:
         argspec += full_attribute_name(arg['attributes']) + " "
@@ -190,17 +228,13 @@ class DefinitionParser(object):
       # argspec += arg['type'] + ' ' + arg['name']
       print "    {}{} {}".format(argspec, arg['type'], arg['name'])
 
-    return {
-      'modifiers': modifiers,
-      'returns': returntype,
-      'name': name,
-      'arguments': arguments,
-    }
+    return method
 
 #     partialopt return-type member-name type-parameter-listopt
 # ( formal-parameter-listopt ) type-parameter-constraints-clausesopt
 
   def parse_class(self):
+
     modifiers = self._parse_class_modifiers()
     static = 'static' in modifiers
     visibility = self._find_visibility(modifiers)
@@ -258,7 +292,7 @@ class DefinitionParser(object):
       for arg in [x for x in generic_params if parameter_constraints.has_key(x)]:
         print "     Arg {}:   {}".format(arg, parameter_constraints[arg])
     if len(class_bases) > 0:
-      print "  Bases:      {}".format(", ".join(full_type_name(x) for x in class_bases))
+      print "  Bases:      {}".format(", ".join([str(x) for x in class_bases]))
 
     return {
       'visibility': visibility,
@@ -269,6 +303,93 @@ class DefinitionParser(object):
       'bases': class_bases,
       'typearg_constraints': parameter_constraints
     }
+
+  def parse_property(self):
+    attributes = self._parse_attributes()
+    modifiers = self._parse_property_modifiers()
+    typename = self._parse_type()
+    name = self._parse_member_name()
+    self.skip_character_and_ws('{')
+
+    self.skip_character_and_ws('}')
+
+  def parse_member(self):
+    raise ValueError()
+    return _parse_class_member_declaration()
+
+  def _parse_method_header(self):
+    method = MethodInfo()
+    method._attributes = self._parse_attributes()
+    method._modifiers = self._parse_method_modifiers()
+    self.skip_word_and_ws('partial')
+    method._return_type = self._parse_returntype()
+    
+    # The member name
+    method._name = self._parse_member_name()
+
+    # The argument list
+    self.swallow_character_and_ws('(')
+    method._arguments = self._parse_formal_argument_list()
+    self.swallow_character_and_ws(')')
+
+    type_parameter_list = self._parse_type_parameter_list()
+
+    #raise NotImplementedError("Need to read formal parameter list")
+
+    constraints = self._parse_type_parameter_constraints_clauses()
+
+    return method
+
+  def _parse_class_member_declaration():
+    # Attempt to parse a methd
+    pass
+
+  # class-member-declaration:
+  #  constant-declaration
+  #  field-declaration 
+  #  method-declaration 
+  #  property-declaration 
+  #  event-declaration 
+  #  indexer-declaration 
+  #  operator-declaration 
+  #  constructor-declaration 
+  #  destructor-declaration
+  #  static-constructor-declaration 
+  #  type-declaration
+
+
+# accessor-declarations:
+# get-accessor-declaration set-accessor-declarationopt set-accessor-declaration get-accessor-declarationopt
+# get-accessor-declaration:
+# attributesopt accessor-modifieropt get accessor-body
+# set-accessor-declaration:
+# attributesopt accessor-modifieropt set accessor-body
+# accessor-modifier:
+# protected
+# internal
+# private
+# protected internal internal protected
+
+  def _parse_accessor_declaration(self):
+    attributes = self._parse_attributes()
+    modifiers = self._parse_modifiers(('protected', 'internal', 'private'))
+    accessor = None
+    # Next word is either get or set
+    if self.skip_word_and_ws('get'):
+      accessor = "get"
+    elif self.skip_word_and_ws('set'):
+      accessor = "set"
+    else:
+      raise DefinitionError("Could not read get or set from property")
+    # Now is accessor body. Die unless this is just an empty ;
+    if not self.skip_character_and_ws(';'):
+      raise DefinitionError("Can not read properties with block body!")
+    return {
+      'accessor': accessor,
+      'attributes': attributes,
+      'modifiers': modifiers
+    }
+
 
   def _parse_identifier(self):
     match = self.match(_identifier_re)
@@ -341,6 +462,12 @@ class DefinitionParser(object):
                        'extern')
     return self._parse_modifiers(valid_modifiers)
 
+  def _parse_property_modifiers(self):
+    valid_modifiers = ('new', 'public', 'protected', 'internal', 'private',
+                       'static', 'virtual', 'sealed', 'override', 'abstract',
+                       'extern')
+    return self._parse_modifiers(valid_modifiers)
+
   def _parse_modifiers(self, valid_modifiers):
     modifiers = []
     self.skip_ws()
@@ -368,8 +495,8 @@ class DefinitionParser(object):
     return attrs
 
   def _parse_attribute_section(self):
-    self.skip_character_and_ws('[')
-    
+    self.swallow_character_and_ws('[')
+
     # Do we have an attribute target specifier?
     specifiers = ['field', 'event', 'method', 'param', 'property', 'return', 'type']
     self.match(_identifier_re)
@@ -377,25 +504,23 @@ class DefinitionParser(object):
     if self.matched_text in specifiers:
       target = self.matched_text
       self.skip_ws()
-      self.skip_character_and_ws(':')
+      self.swallow_character_and_ws(":")
     else:
       self.backout()
 
-    # Now, the main attribute list: One or more attributes, separated by commas
-    attributes = self.parse_comma_list([r']'], self._parse_attribute)
-    self.skip_character_and_ws(']')
-    return {
-      'target': target,
-      'attributes': attributes
-    }
+    asi = AttributeSectionInfo()
+    asi._target = target
+    asi._attributes = self.parse_comma_list([r']'], self._parse_attribute)
+    self.swallow_character_and_ws(']')
+    return asi
 
   def _parse_attribute(self):
     name = self._parse_type_name()
     arguments = self._parse_attribute_arguments()
-    return {
-      'name': name,
-      'args': arguments,
-    }
+    attr = AttributeInfo()
+    attr._name = name
+    attr._arguments = arguments
+    return attr
 
   def _parse_attribute_arguments(self):
     if not self.skip_character_and_ws('('):
@@ -425,19 +550,14 @@ class DefinitionParser(object):
 
   def _parse_namespace_or_type_name(self):
     # Effectively, list of .-separated identifier/type-argument-list pairs
-    name = {}
-    name['name'] = self._parse_identifier()
-    name['args'] = self._parse_type_argument_list()
-    if len(name['args']):
-      name['full'] = "{}<{}>".format(name['name'], ', '.join(name['args']))
-    else:
-      name['full'] = name['name']
+    name = self._parse_identifier()
+    args = self._parse_type_argument_list()
+    tname = TypeInfo(name, args)
 
-    names = [name]
     if self.skip_character_and_ws('.'):
       # Grab another namespace
-      names.extend(self._parse_namespace_or_type_name)
-    return names
+      tname._namespace = self._parse_namespace_or_type_name()
+    return tname
 
   def _parse_type(self):
     """Parses a 'type'. Only simple, for now"""
@@ -558,10 +678,10 @@ class CSMethodObject(CSObject):
     parser = DefinitionParser(sig)
     info = parser.parse_method()
 
-    self.attach_modifiers(signode, info['modifiers'])
-    self.attach_type(signode, info['returns'])
+    self.attach_modifiers(signode, info._modifiers)
+    self.attach_type(signode, info._return_type)
     signode += nodes.Text(u' ')
-    signode += addnodes.desc_name(info['name'], info['name'])
+    signode += addnodes.desc_name(str(info._name), str(info._name))
     # if info['generic_args']:
     #   signode += nodes.Text('<')
     #   for arg in info['generic_args']:
@@ -581,7 +701,7 @@ class CSMethodObject(CSObject):
         #         param += nodes.emphasis(def_, def_)
         #     paramlist += param
     paramlist = addnodes.desc_parameterlist()
-    for arg in info['arguments']:
+    for arg in info._arguments:
       param = addnodes.desc_parameter('', '', noemph=True)
       if arg['attributes']:
         self.attach_attributes(param, arg['attributes'])
@@ -598,7 +718,17 @@ class CSMethodObject(CSObject):
     signode += paramlist
     # Argument: {'default': None, 'attributes': [], 'modifiers': [], 'type': u'bool', 'name': u'hasError'}
 
+class CSPropertyObject(CSObject):
+    def handle_signature(self, sig, signode):
+      parser = DefinitionParser(sig)
+      info = parser.parse_property()
+      raise ValueError()
 
+class CSMemberObject(CSObject):
+  def handle_signature(self, sig, signode):
+    parser = DefinitionParser(sig)
+    info = parser.parse_member()
+    raise ValueError()
 
 
 
@@ -646,6 +776,8 @@ class CSharpDomain(Domain):
   directives = {
       'class':        CSClassObject,
       'method':       CSMethodObject,
+      'property':     CSPropertyObject,
+      'member':       CSMemberObject,
       # 'property':     CSPropertyObject
       'namespace':    CSCurrentNamespace
   }

@@ -21,7 +21,15 @@ Contents:
 .. cs:method:: public void SetError(bool hasError, string description = null, [CallerMemberName] string property = null)
 
   A member method on the class
-  
+
+.. cs:property:: public bool HasErrors { get; }
+
+  A property on the class
+
+.. cs:member:: public bool HasErrors { get; }
+
+.. cs:member:: public void SetError(bool hasError, string description = null, [CallerMemberName] string property = null)
+
 Indices and tables
 ==================
 
