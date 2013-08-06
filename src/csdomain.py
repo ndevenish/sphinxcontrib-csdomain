@@ -325,6 +325,11 @@ class DefinitionParser(object):
     except DefinitionError:
       self.pos, self.last_match = state
       print "Could not parse property from: " + self.definition[self.pos:]
+    try:
+      return self._parse_constructor_declaration()
+    except DefinitionError:
+      self.pos, self.last_match = state
+      print "Could not parse constructor from: " + self.definition[self.pos:]
     raise ValueError()
 
   # class-member-declaration:
@@ -339,6 +344,16 @@ class DefinitionParser(object):
   #  destructor-declaration
   #  static-constructor-declaration 
   #  type-declaration
+
+  def _parse_constructor_declaration(self):
+    method = MethodInfo()
+    method._attributes = self._parse_attributes()
+    method._modifiers = self._parse_constructor_modifiers()
+    method._name = self._parse_identifier()
+    self.swallow_character_and_ws('(')
+    method._arguments = self._parse_formal_argument_list()
+    self.swallow_character_and_ws(')')
+    return method
 
   def _parse_property_declaration(self):
     prop = PropertyInfo()
@@ -461,6 +476,10 @@ class DefinitionParser(object):
     """Parse any valid class modifiers"""
     valid_modifiers = ('new', 'public', 'protected', 'internal', 'private',
                        'abstract', 'sealed', 'static', 'type')
+    return self._parse_modifiers(valid_modifiers)
+
+  def _parse_constructor_modifiers(self):
+    valid_modifiers = ('public', 'protected', 'internal', 'private', 'extern')
     return self._parse_modifiers(valid_modifiers)
 
   def _parse_method_modifiers(self):
@@ -694,8 +713,9 @@ class CSMemberObject(CSObject):
 
   def attach_method(self, signode, info):
     self.attach_modifiers(signode, info._modifiers)
-    self.attach_type(signode, info._type)
-    signode += nodes.Text(u' ')
+    if info._type:
+      self.attach_type(signode, info._type)
+      signode += nodes.Text(u' ')
     signode += addnodes.desc_name(str(info._name), str(info._name))
 
     paramlist = addnodes.desc_parameterlist()

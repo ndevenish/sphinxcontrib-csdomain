@@ -30,6 +30,8 @@ Contents:
 
 .. cs:member:: public void SetError(bool hasError, string description = null, [CallerMemberName] string property = null)
 
+.. cs:member:: public SetErrorConstructor(bool hasError, string description = null, [CallerMemberName] string property = null)
+
 Indices and tables
 ==================
 
