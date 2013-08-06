@@ -190,6 +190,12 @@ class DefinitionParser(object):
       # argspec += arg['type'] + ' ' + arg['name']
       print "    {}{} {}".format(argspec, arg['type'], arg['name'])
 
+    return {
+      'modifiers': modifiers,
+      'returns': returntype,
+      'name': name,
+      'arguments': arguments,
+    }
 
 #     partialopt return-type member-name type-parameter-listopt
 # ( formal-parameter-listopt ) type-parameter-constraints-clausesopt
@@ -349,8 +355,8 @@ class DefinitionParser(object):
     return modifiers
 
   def _parse_returntype(self):
-    if (self.skip_word_and_ws('void')):
-      return 'void'
+    # if (self.skip_word_and_ws('void')):
+    #   return 'void'
     return self._parse_type()
 
   def _parse_attributes(self):
@@ -435,10 +441,11 @@ class DefinitionParser(object):
 
   def _parse_type(self):
     """Parses a 'type'. Only simple, for now"""
-    self.match(_identifier_re)
-    match = self.matched_text
-    self.skip_ws()
-    return match
+    return self._parse_type_name()
+    # self.match(_identifier_re)
+    # match = self.matched_text
+    # self.skip_ws()
+    # return match
 
 # identifier type-argument-listopt
 # namespace-or-type-name . identifier type-argument-listopt qualified-alias-member
@@ -457,7 +464,28 @@ class DefinitionParser(object):
     return visibility
 
 class CSObject(ObjectDescription):
-  pass  
+  def attach_name(self, signode, name):
+    namespace = self.env.temp_data.get('cs:namespace')
+    if namespace:
+      for space in namespace.split('.'):
+        signode += addnodes.desc_addname(space, space)
+        signode += nodes.Text('.')
+    signode += addnodes.desc_name(name, name)
+
+
+  def attach_type(self, signode, typename):
+    typename = full_type_name(typename)
+    signode += nodes.emphasis(unicode(typename), unicode(typename))
+    
+  def attach_attributes(self, signode, attributes):
+    aname = full_attribute_name(attributes)
+    signode += nodes.emphasis(aname, aname)
+
+  def attach_modifiers(self, signode, modifiers):
+    for modifier in modifiers:
+      signode += addnodes.desc_annotation(modifier, modifier)
+      signode += nodes.Text(' ')
+
   # def handle_signature(self, sig, signode):
   #   parser = DefinitionParser(sig)
   #   rv = self.parse_definition(parser)
@@ -484,8 +512,6 @@ class CSClassObject(CSObject):
     parser = DefinitionParser(sig)
     info = parser.parse_class()
 
-    namespace = self.env.temp_data.get('cs:namespace')
-
         # modname = self.options.get(
         #     'module', self.env.temp_data.get('py:module'))
         # classname = self.env.temp_data.get('py:class')
@@ -500,12 +526,8 @@ class CSClassObject(CSObject):
 
     signode += addnodes.desc_annotation('class ', 'class ')
 
-    # Handle the namespace
-    if namespace:
-      for space in namespace.split('.'):
-        signode += addnodes.desc_addname(space, space)
-        signode += nodes.Text('.')
-    signode += addnodes.desc_name(info['name'], info['name'])
+    # Handle the name
+    self.attach_name(signode, info['name'])
     
     if info['generic']:
       signode += addnodes.desc_annotation('<', '<')
@@ -518,7 +540,7 @@ class CSClassObject(CSObject):
     if len(info['bases']) > 0:
       signode += nodes.Text(' : ')
       for base in info['bases']:
-        signode += nodes.emphasis(unicode(base), unicode(base))
+        self.attach_type(signode, base)
         signode += nodes.Text(', ')
       signode.pop()
 
@@ -531,24 +553,53 @@ class CSClassObject(CSObject):
         signode += addnodes.desc_annotation(', ', ', ')
       signode.pop()
 
-
-        #     self.attach_modifiers(signode, cls)
-        # signode += addnodes.desc_annotation('class ', 'class ')
-        # self.attach_name(signode, cls.name)
-        # if cls.bases:
-        #     signode += nodes.Text(' : ')
-        #     for base in cls.bases:
-        #         self.attach_modifiers(signode, base, 'private')
-        #         signode += nodes.emphasis(unicode(base.name),
-        #                                   unicode(base.name))
-        #         signode += nodes.Text(', ')
-        #     signode.pop()  # remove the trailing comma
-
-
 class CSMethodObject(CSObject):
   def handle_signature(self, sig, signode):
     parser = DefinitionParser(sig)
     info = parser.parse_method()
+
+    self.attach_modifiers(signode, info['modifiers'])
+    self.attach_type(signode, info['returns'])
+    signode += nodes.Text(u' ')
+    signode += addnodes.desc_name(info['name'], info['name'])
+    # if info['generic_args']:
+    #   signode += nodes.Text('<')
+    #   for arg in info['generic_args']:
+    #     self.attach_type
+    #   signode += nodes.Text('>')
+
+        #     paramlist = addnodes.desc_parameterlist()
+        # for arg in func.signature:
+        #     param = addnodes.desc_parameter('', '', noemph=True)
+        #     if arg.type is not None:
+        #         self.attach_type(param, arg.type)
+        #         param += nodes.Text(u' ')
+        #     param += nodes.emphasis(unicode(arg.name), unicode(arg.name))
+        #     self.attach_type_suffixes(param, arg.type_suffixes)
+        #     if arg.default is not None:
+        #         def_ = u'=' + unicode(arg.default)
+        #         param += nodes.emphasis(def_, def_)
+        #     paramlist += param
+    paramlist = addnodes.desc_parameterlist()
+    for arg in info['arguments']:
+      param = addnodes.desc_parameter('', '', noemph=True)
+      if arg['attributes']:
+        self.attach_attributes(param, arg['attributes'])
+      self.attach_modifiers(param, arg['modifiers'])
+      self.attach_type(param, arg['type'])
+      param += nodes.Text(u' ')
+      param += nodes.emphasis(unicode(arg['name']), unicode(arg['name']))
+
+      if arg['default']:
+        param += nodes.Text(u' = ')
+        param += nodes.emphasis(arg['default'], arg['default'])
+
+      paramlist += param
+    signode += paramlist
+    # Argument: {'default': None, 'attributes': [], 'modifiers': [], 'type': u'bool', 'name': u'hasError'}
+
+
+
 
 
 class CSCurrentNamespace(Directive):
