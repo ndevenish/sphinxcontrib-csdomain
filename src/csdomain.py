@@ -702,18 +702,6 @@ class CSClassObject(CSObject):
         signode += addnodes.desc_annotation(', ', ', ')
       signode.pop()
 
-class CSMethodObject(CSObject):
-  def handle_signature(self, sig, signode):
-    parser = DefinitionParser(sig)
-    info = parser.parse_method()
-
-
-class CSPropertyObject(CSObject):
-    def handle_signature(self, sig, signode):
-      parser = DefinitionParser(sig)
-      info = parser.parse_property()
-      raise ValueError()
-
 class CSMemberObject(CSObject):
   def handle_signature(self, sig, signode):
     parser = DefinitionParser(sig)
@@ -750,7 +738,13 @@ class CSMemberObject(CSObject):
     signode += paramlist
 
   def attach_property(self, signode, info):
-    pass
+    #attributesopt property-modifiersopt type member-name { accessor-declarations }
+    self.attach_attributes(signode, info._attributes)
+    self.attach_modifiers(signode, info._modifiers)
+    self.attach_type(signode, info._type)
+    signode += nodes.Text(u' ')
+    signode += addnodes.desc_name(str(info._name), str(info._name))
+
 
 
 class CSCurrentNamespace(Directive):
@@ -797,7 +791,7 @@ class CSharpDomain(Domain):
   directives = {
       'class':        CSClassObject,
       'method':       CSMemberObject,
-      'property':     CSPropertyObject,
+      'property':     CSMemberObject,
       'member':       CSMemberObject,
       # 'property':     CSPropertyObject
       'namespace':    CSCurrentNamespace
