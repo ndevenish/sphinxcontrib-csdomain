@@ -16,6 +16,12 @@ _whitespace_re = re.compile(r'\s+(?u)')
 def valid_identifier(string):
   return _identifier_re.match(string) is not None
 
+def full_type_name(type_name):
+  return ".".join(x['full'] for x in type_name)
+
+def full_attribute_name(attribute_info):
+  raise NotImplementedError()
+
 class DefinitionError(Exception):
     def __init__(self, description):
         self.description = description
@@ -114,23 +120,23 @@ class DefinitionParser(object):
     if parser is None:
       parser = self._parse_identifier
     results = []
-    match = None
-    try:
-      match = parser()
-    except DefinitionError:
-      match = None
-    while match:
-      if match in terminators:
-        break
-      results.append(self.matched_text)
-      self.skip_character_and_ws(',')
-      try:
-        match = parser()
-      except DefinitionError:
-        match = None
-    # Step backwards if we broke early
-    if self.matched_text in terminators:
+    # try:
+    #   match = parser()
+    # except DefinitionError:
+    #   match = None
+    # Try to grab an identifier first
+
+    while self.match(_identifier_re):
+      matched_text = self.matched_text
       self.backout()
+      if matched_text in terminators:
+        break
+      # We know we can continue, now run the proper parsing method
+      try:
+        results.append(parser())
+      except DefinitionError:
+        break
+      self.skip_character_and_ws(',')
     return results
 
   def parse_method(self):
@@ -164,6 +170,7 @@ class DefinitionParser(object):
       if arg['attributes']:
         argspec += "["
         for attr in arg['attributes']:
+          print attr["attributes"]
           argspec += ", ".join(attr["attributes"])
         argspec += "] "
       if arg['modifiers']:
@@ -195,7 +202,7 @@ class DefinitionParser(object):
     class_bases = []
     # (Optional) Class-bases next, starting with :
     if self.skip_character_and_ws(':'):
-      class_bases = self.parse_comma_list(("where", "{"))
+      class_bases = self.parse_comma_list(("where", "{"), self._parse_type_name)
 
     # Optional type-parameter-constraints
     self.skip_ws()
@@ -233,7 +240,7 @@ class DefinitionParser(object):
       for arg in [x for x in generic_params if parameter_constraints.has_key(x)]:
         print "     Arg {}:   {}".format(arg, parameter_constraints[arg])
     if len(class_bases) > 0:
-      print "  Bases:      {}".format(", ".join(class_bases))
+      print "  Bases:      {}".format(", ".join(full_type_name(x) for x in class_bases))
 
     return {
       'visibility': visibility,
@@ -383,6 +390,17 @@ class DefinitionParser(object):
 
   def _parse_type_name(self):
     return self._parse_namespace_or_type_name()
+
+  def _parse_class_type(self):
+    #type-name
+    #     object
+    #     dynamic
+    #     string
+    self.match(_identifier_re)
+    if self.matched_text in ("object", "dynamic", "string"):
+      return self.matched_text
+    self.backout()
+    return self._parse_type_name()
 
   def _parse_namespace_name(self):
     return self._parse_namespace_or_type_name()
