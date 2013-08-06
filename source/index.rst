@@ -32,6 +32,8 @@ Contents:
 
 .. cs:member:: public SetErrorConstructor(bool hasError, string description = null, [CallerMemberName] string property = null)
 
+.. cs:interface:: public interface IVisibleModelClass : IModelClass
+
 Indices and tables
 ==================
 

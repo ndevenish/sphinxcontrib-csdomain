@@ -49,6 +49,27 @@ class AttributeInfo(object):
       fs += "(" + ", ".join(self._arguments) + ")"
     return fs
 
+class ClassInfo(object):
+  _name = None
+  _type_parameters = []
+  _type_parameter_constraints = []
+  _bases = []
+  _modifiers = []
+  _classlike_category = 'class'
+  _partial = False
+
+  @property
+  def visibility(self):
+    vis_modifiers = ('public', 'protected', 'private', 'internal')
+    visibility = set(self._modifiers).intersection(set(vis_modifiers))
+    if not visibility:
+      return None
+    return visibility.pop()
+
+  @property
+  def static(self):
+    return 'static' in self._modifiers
+
 class TypeInfo(object):
   _name = None
   _arguments = None
@@ -232,32 +253,48 @@ class DefinitionParser(object):
 
     return method
 
+  def parse_classlike(self):
+    state = (self.pos, self.last_match)
+    try:
+      return self._parse_class()
+    except DefinitionError:
+      self.pos, self.last_match = state
+    try:
+      return self._parse_interface()
+    except DefinitionError:
+      self.pos, self.last_match = state
+    raise ValueError("Could not read classlike object")
+
+
   def parse_class(self):
+    clike = self._parse_class()
+    return {
+      'visibility': clike.visibility,
+      'static': clike.static,
+      'name': clike._name,
+      'generic': len(clike._type_parameters) > 0,
+      'typeargs': clike._type_parameters,
+      'bases': clike._bases,
+      'typearg_constraints': clike._type_parameter_constraints
+    }
 
-    modifiers = self._parse_class_modifiers()
-    static = 'static' in modifiers
-    visibility = self._find_visibility(modifiers)
+  def _parse_class(self):
+    clike = ClassInfo()
 
-    # Skip the word partial, and class
-    partial = self.skip_word_and_ws("partial")
-    if not self.skip_word_and_ws("class"):
-      self.fail("invalid class definition")
-    # The Class Name
-    self.match(_identifier_re)
-    name = self.matched_text
-
+    clike._modifiers = self._parse_class_modifiers()
+    clike._partial = self.skip_word_and_ws("partial")
+    self.swallow_character_and_ws('class')
+    clike._name = self._parse_identifier()
     # Optional type-parameter list
-    generic_params = self._parse_type_parameter_list()
-    generic = len(generic_params) > 0
+    clike._type_parameters = self._parse_type_parameter_list()
 
-    class_bases = []
     # (Optional) Class-bases next, starting with :
     if self.skip_character_and_ws(':'):
-      class_bases = self.parse_comma_list(("where", "{"), self._parse_type_name)
+      clike._bases = self.parse_comma_list(("where", "{"), self._parse_type_name)
 
     # Optional type-parameter-constraints
     self.skip_ws()
-    parameter_constraints = self._parse_type_parameter_constraints_clauses()
+    clike._type_parameter_constraints = self._parse_type_parameter_constraints_clauses()
 
     # # Print a summary of all information
     # print "Parsing Class:"
@@ -273,15 +310,7 @@ class DefinitionParser(object):
     # if len(class_bases) > 0:
     #   print "  Bases:      {}".format(", ".join([str(x) for x in class_bases]))
 
-    return {
-      'visibility': visibility,
-      'static': static,
-      'name': name,
-      'generic': generic,
-      'typeargs': generic_params,
-      'bases': class_bases,
-      'typearg_constraints': parameter_constraints
-    }
+    return clike
 
   def parse_property(self):
     return self._parse_property_declaration()
@@ -289,6 +318,39 @@ class DefinitionParser(object):
   def parse_member(self):
     return self._parse_class_member_declaration()
 
+  def _parse_interface(self):
+    cinfo = ClassInfo()
+
+    cinfo._attributes = self._parse_attributes()
+    cinfo._modifiers = self._parse_modifiers(('new', 'public', 'protected',
+      'internal', 'private'))
+    cinfo._partial = self.skip_word_and_ws('partial')
+    self.swallow_character_and_ws('interface')
+    cinfo._classlike_category = 'interface'
+    cinfo._name = self._parse_identifier()
+    cinfo._type_parameters = self._parse_type_parameter_list()
+    if self.skip_character_and_ws(':'):
+      cinfo.bases = self.parse_comma_list(("where", "{"), self._parse_type_name)
+    cinfo._type_parameter_constraints = self._parse_type_parameter_constraints_clauses()
+
+    return cinfo
+
+
+#     attributesopt interface-modifiersopt partialopt interface
+# identifier variant-type-parameter-listopt interface-baseopt
+# 504
+# Copyright © Microsoft Corporation 1999-2012. All Rights Reserved.
+# type-parameter-constraints-clausesopt
+# interface-modifiers:
+# interface-modifier
+# interface-modifiers interface-modifier
+# interface-body ;opt
+# interface-modifier:
+#          new
+#          public
+#          protected
+#          internal
+#          private
   def _parse_method_header(self):
     method = MethodInfo()
     method._attributes = self._parse_attributes()
@@ -502,8 +564,6 @@ class DefinitionParser(object):
     return modifiers
 
   def _parse_returntype(self):
-    # if (self.skip_word_and_ws('void')):
-    #   return 'void'
     return self._parse_type()
 
   def _parse_attributes(self):
@@ -555,10 +615,6 @@ class DefinitionParser(object):
     return self._parse_namespace_or_type_name()
 
   def _parse_class_type(self):
-    #type-name
-    #     object
-    #     dynamic
-    #     string
     self.match(_identifier_re)
     if self.matched_text in ("object", "dynamic", "string"):
       return self.matched_text
@@ -582,16 +638,6 @@ class DefinitionParser(object):
   def _parse_type(self):
     """Parses a 'type'. Only simple, for now"""
     return self._parse_type_name()
-    # self.match(_identifier_re)
-    # match = self.matched_text
-    # self.skip_ws()
-    # return match
-
-# identifier type-argument-listopt
-# namespace-or-type-name . identifier type-argument-listopt qualified-alias-member
-
-
-
 
   def _find_visibility(self, modifiers):
     # Extract any visibility modifiers from this
@@ -626,65 +672,48 @@ class CSObject(ObjectDescription):
       signode += addnodes.desc_annotation(modifier, modifier)
       signode += nodes.Text(' ')
 
-  # def handle_signature(self, sig, signode):
-  #   parser = DefinitionParser(sig)
-  #   rv = self.parse_definition(parser)
-  
-  # def parse_definition(self, parser):
-  #   raise NotImplementedError()
-
-  # def attach_modifiers(self, node, obj, visibility='public'):
-  #     if obj.visibility != visibility:
-  #         node += addnodes.desc_annotation(obj.visibility,
-  #                                          obj.visibility)
-  #         node += nodes.Text(' ')
-  #     if obj.static:
-  #         node += addnodes.desc_annotation('static', 'static')
-  #         node += nodes.Text(' ')
-  #     if getattr(obj, 'constexpr', False):
-  #         node += addnodes.desc_annotation('constexpr', 'constexpr')
-  #         node += nodes.Text(' ')
-
 class CSClassObject(CSObject):
-  # def parse_definition(self, parser):
-  #   return parser.parse_class()
   def handle_signature(self, sig, signode):
     parser = DefinitionParser(sig)
-    info = parser.parse_class()
+    clike = parser.parse_classlike()
 
-        # modname = self.options.get(
-        #     'module', self.env.temp_data.get('py:module'))
-        # classname = self.env.temp_data.get('py:class')
-
-
-    if info['visibility'] != 'public':
-      signode += addnodes.desc_annotation(info["visibility"], info["visibility"])
+    visibility = clike.visibility
+    modifiers = clike._modifiers
+    if visibility in modifiers:
+      modifiers.remove(visibility)
+    if visibility:
+      signode += addnodes.desc_annotation(visibility, visibility)
       signode += nodes.Text(' ')
-    if info['static']:
+    if clike.static:
+      modifiers.remove('static')
       signode += addnodes.desc_annotation('static', 'static')
       signode += nodes.Text(' ')
+    for modifier in modifiers:
+      signode += addnodes.desc_annotation(modifier, modifier)
+      signode += nodes.Text(' ')
 
-    signode += addnodes.desc_annotation('class ', 'class ')
+    clike_category = clike._classlike_category + " "
+    signode += addnodes.desc_annotation(clike_category, clike_category)
 
     # Handle the name
-    self.attach_name(signode, info['name'])
+    self.attach_name(signode, clike._name)
     
-    if info['generic']:
+    if clike._type_parameters:
       signode += addnodes.desc_annotation('<', '<')
-      for node in info['typeargs']:
+      for node in clike._type_parameters:
         signode += addnodes.desc_annotation(node, node)
         signode += nodes.Text(', ')
       signode.pop()
       signode += addnodes.desc_annotation('>', '>')
 
-    if len(info['bases']) > 0:
+    if clike._bases:
       signode += nodes.Text(' : ')
-      for base in info['bases']:
+      for base in clike._bases:
         self.attach_type(signode, base)
         signode += nodes.Text(', ')
       signode.pop()
 
-    for (name, constraints) in info['typearg_constraints'].iteritems():
+    for (name, constraints) in clike._type_parameter_constraints.iteritems():
       signode += addnodes.desc_annotation(' where ', ' where ')
       signode += addnodes.desc_annotation(name, name)
       signode += addnodes.desc_annotation(' : ', ' : ')
@@ -792,10 +821,11 @@ class CSharpDomain(Domain):
 
   directives = {
       'class':        CSClassObject,
+      'interface':    CSClassObject,
       'method':       CSMemberObject,
       'property':     CSMemberObject,
       'member':       CSMemberObject,
-      # 'property':     CSPropertyObject
+      
       'namespace':    CSCurrentNamespace
   }
 
