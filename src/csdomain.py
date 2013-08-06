@@ -259,19 +259,19 @@ class DefinitionParser(object):
     self.skip_ws()
     parameter_constraints = self._parse_type_parameter_constraints_clauses()
 
-    # Print a summary of all information
-    print "Parsing Class:"
-    print "  Visibility: " + visibility
-    print "  Static:     {}".format(static)
-    print "  Partial:    {}".format(partial)
-    print "  ClassName:  {}".format(name)
-    print "  Generic:    {}".format(generic)
-    if (generic):
-      print "     Args:    {}".format(", ".join(generic_params))
-      for arg in [x for x in generic_params if parameter_constraints.has_key(x)]:
-        print "     Arg {}:   {}".format(arg, parameter_constraints[arg])
-    if len(class_bases) > 0:
-      print "  Bases:      {}".format(", ".join([str(x) for x in class_bases]))
+    # # Print a summary of all information
+    # print "Parsing Class:"
+    # print "  Visibility: " + visibility
+    # print "  Static:     {}".format(static)
+    # print "  Partial:    {}".format(partial)
+    # print "  ClassName:  {}".format(name)
+    # print "  Generic:    {}".format(generic)
+    # if (generic):
+    #   print "     Args:    {}".format(", ".join(generic_params))
+    #   for arg in [x for x in generic_params if parameter_constraints.has_key(x)]:
+    #     print "     Arg {}:   {}".format(arg, parameter_constraints[arg])
+    # if len(class_bases) > 0:
+    #   print "  Bases:      {}".format(", ".join([str(x) for x in class_bases]))
 
     return {
       'visibility': visibility,
@@ -319,18 +319,16 @@ class DefinitionParser(object):
       return self._parse_method_header()
     except DefinitionError:
       self.pos, self.last_match = state
-      print "Could not parse method from: " + self.definition[self.pos:]
     try:
       return self._parse_property_declaration()
     except DefinitionError:
       self.pos, self.last_match = state
-      print "Could not parse property from: " + self.definition[self.pos:]
     try:
       return self._parse_constructor_declaration()
     except DefinitionError:
       self.pos, self.last_match = state
-      print "Could not parse constructor from: " + self.definition[self.pos:]
-    raise ValueError()
+
+    raise ValueError("Could not determine member type for " + self.definition[self.pos:])
 
   # class-member-declaration:
   #  constant-declaration
@@ -379,10 +377,6 @@ class DefinitionParser(object):
           prop._setter = ac
     except DefinitionError:
       pass
-
-    print "setter: " + str(prop._setter)
-    print "getter: " + str(prop._getter)
-
 
     self.swallow_character_and_ws('}')
     return prop
