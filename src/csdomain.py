@@ -13,12 +13,18 @@ _identifier_re = re.compile(r'(~?\b[a-zA-Z_][a-zA-Z0-9_]*)\b')
 # _visibility_re = re.compile(r'\b(public|private|protected)\b')
 _whitespace_re = re.compile(r'\s+(?u)')
 
-class MethodInfo(object):
+class MemberInfo(object):
   _attributes = []
   _modifiers = []
   _name = None
-  _return_type = None
+  _type = None
+
+class MethodInfo(MemberInfo):
   _arguments = None
+
+class PropertyInfo(MemberInfo):
+  _setter = None
+  _getter = None
 
 class AttributeSectionInfo(object):
   _target = None
@@ -216,7 +222,7 @@ class DefinitionParser(object):
     print method
     print "Parsing Method:"
     print "  Modifiers: {}".format(", ".join(method._modifiers))
-    print "  Return:    {}".format(method._return_type)
+    print "  Return:    {}".format(method._type)
     print "  Name:      {}".format(method._name)
     print "  Arguments: {}".format(len(method._arguments))
     for arg in method._arguments:
@@ -305,24 +311,17 @@ class DefinitionParser(object):
     }
 
   def parse_property(self):
-    attributes = self._parse_attributes()
-    modifiers = self._parse_property_modifiers()
-    typename = self._parse_type()
-    name = self._parse_member_name()
-    self.skip_character_and_ws('{')
-
-    self.skip_character_and_ws('}')
+    return self._parse_property_declaration()
 
   def parse_member(self):
-    raise ValueError()
-    return _parse_class_member_declaration()
+    return self._parse_class_member_declaration()
 
   def _parse_method_header(self):
     method = MethodInfo()
     method._attributes = self._parse_attributes()
     method._modifiers = self._parse_method_modifiers()
     self.skip_word_and_ws('partial')
-    method._return_type = self._parse_returntype()
+    method._type = self._parse_returntype()
     
     # The member name
     method._name = self._parse_member_name()
@@ -340,9 +339,20 @@ class DefinitionParser(object):
 
     return method
 
-  def _parse_class_member_declaration():
+  def _parse_class_member_declaration(self):
+    state = (self.pos, self.last_match)
     # Attempt to parse a methd
-    pass
+    try:
+      return self._parse_method_header()
+    except DefinitionError:
+      self.pos, self.last_match = state
+      print "Could not parse method from: " + self.definition[self.pos:]
+    try:
+      return self._parse_property_declaration()
+    except DefinitionError:
+      self.pos, self.last_match = state
+      print "Could not parse property from: " + self.definition[self.pos:]
+    raise ValueError()
 
   # class-member-declaration:
   #  constant-declaration
@@ -357,38 +367,57 @@ class DefinitionParser(object):
   #  static-constructor-declaration 
   #  type-declaration
 
+  def _parse_property_declaration(self):
+    prop = PropertyInfo()
 
-# accessor-declarations:
-# get-accessor-declaration set-accessor-declarationopt set-accessor-declaration get-accessor-declarationopt
-# get-accessor-declaration:
-# attributesopt accessor-modifieropt get accessor-body
-# set-accessor-declaration:
-# attributesopt accessor-modifieropt set accessor-body
-# accessor-modifier:
-# protected
-# internal
-# private
-# protected internal internal protected
+    prop._attributes = self._parse_attributes()
+    prop._modifiers = self._parse_property_modifiers()
+    prop._type = self._parse_type()
+    prop._name = self._parse_member_name()
+    
+    self.swallow_character_and_ws('{')
+    try:
+      ac = self._parse_accessor_declaration()
+      if ac:
+        if ac._name == "get":
+          prop._getter = ac
+        else:
+          prop._setter = ac
+    except DefinitionError:
+      pass
+    try:
+      ac = self._parse_accessor_declaration()
+      if ac:
+        if ac._name == "get":
+          prop._getter = ac
+        else:
+          prop._setter = ac
+    except DefinitionError:
+      pass
+
+    print "setter: " + str(prop._setter)
+    print "getter: " + str(prop._getter)
+
+
+    self.swallow_character_and_ws('}')
+    return prop
 
   def _parse_accessor_declaration(self):
-    attributes = self._parse_attributes()
-    modifiers = self._parse_modifiers(('protected', 'internal', 'private'))
-    accessor = None
+    ai = MemberInfo()
+    ai._attributes = self._parse_attributes()
+    ai._modifiers = self._parse_modifiers(('protected', 'internal', 'private'))
+    
     # Next word is either get or set
     if self.skip_word_and_ws('get'):
-      accessor = "get"
+      ai._name = "get"
     elif self.skip_word_and_ws('set'):
-      accessor = "set"
+      ai._name = "set"
     else:
       raise DefinitionError("Could not read get or set from property")
     # Now is accessor body. Die unless this is just an empty ;
     if not self.skip_character_and_ws(';'):
       raise DefinitionError("Can not read properties with block body!")
-    return {
-      'accessor': accessor,
-      'attributes': attributes,
-      'modifiers': modifiers
-    }
+    return ai
 
 
   def _parse_identifier(self):
@@ -528,7 +557,7 @@ class DefinitionParser(object):
     # Skip anything until the end )
     self.match(re.compile(r"[^)]*"))
     value = self.matched_text
-    self.skip_character_and_ws(')')
+    self.swallow_character_and_ws(')')
     return [value]
 
   def _parse_type_name(self):
@@ -678,28 +707,31 @@ class CSMethodObject(CSObject):
     parser = DefinitionParser(sig)
     info = parser.parse_method()
 
+
+class CSPropertyObject(CSObject):
+    def handle_signature(self, sig, signode):
+      parser = DefinitionParser(sig)
+      info = parser.parse_property()
+      raise ValueError()
+
+class CSMemberObject(CSObject):
+  def handle_signature(self, sig, signode):
+    parser = DefinitionParser(sig)
+    info = parser.parse_member()
+
+    if type(info) is MethodInfo:
+      return self.attach_method(signode, info)
+    elif type(info) is PropertyInfo:
+      return self.attach_property(signode, info)
+    else:
+      raise ValueError()
+
+  def attach_method(self, signode, info):
     self.attach_modifiers(signode, info._modifiers)
-    self.attach_type(signode, info._return_type)
+    self.attach_type(signode, info._type)
     signode += nodes.Text(u' ')
     signode += addnodes.desc_name(str(info._name), str(info._name))
-    # if info['generic_args']:
-    #   signode += nodes.Text('<')
-    #   for arg in info['generic_args']:
-    #     self.attach_type
-    #   signode += nodes.Text('>')
 
-        #     paramlist = addnodes.desc_parameterlist()
-        # for arg in func.signature:
-        #     param = addnodes.desc_parameter('', '', noemph=True)
-        #     if arg.type is not None:
-        #         self.attach_type(param, arg.type)
-        #         param += nodes.Text(u' ')
-        #     param += nodes.emphasis(unicode(arg.name), unicode(arg.name))
-        #     self.attach_type_suffixes(param, arg.type_suffixes)
-        #     if arg.default is not None:
-        #         def_ = u'=' + unicode(arg.default)
-        #         param += nodes.emphasis(def_, def_)
-        #     paramlist += param
     paramlist = addnodes.desc_parameterlist()
     for arg in info._arguments:
       param = addnodes.desc_parameter('', '', noemph=True)
@@ -716,20 +748,9 @@ class CSMethodObject(CSObject):
 
       paramlist += param
     signode += paramlist
-    # Argument: {'default': None, 'attributes': [], 'modifiers': [], 'type': u'bool', 'name': u'hasError'}
 
-class CSPropertyObject(CSObject):
-    def handle_signature(self, sig, signode):
-      parser = DefinitionParser(sig)
-      info = parser.parse_property()
-      raise ValueError()
-
-class CSMemberObject(CSObject):
-  def handle_signature(self, sig, signode):
-    parser = DefinitionParser(sig)
-    info = parser.parse_member()
-    raise ValueError()
-
+  def attach_property(self, signode, info):
+    pass
 
 
 class CSCurrentNamespace(Directive):
@@ -775,7 +796,7 @@ class CSharpDomain(Domain):
 
   directives = {
       'class':        CSClassObject,
-      'method':       CSMethodObject,
+      'method':       CSMemberObject,
       'property':     CSPropertyObject,
       'member':       CSMemberObject,
       # 'property':     CSPropertyObject
