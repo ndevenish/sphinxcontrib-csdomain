@@ -376,15 +376,12 @@ class DefinitionParser(object):
     prop._name = self._parse_member_name()
     
     self.swallow_character_and_ws('{')
-    try:
-      ac = self._parse_accessor_declaration()
-      if ac:
-        if ac._name == "get":
-          prop._getter = ac
-        else:
-          prop._setter = ac
-    except DefinitionError:
-      pass
+    ac = self._parse_accessor_declaration()
+    if ac:
+      if ac._name == "get":
+        prop._getter = ac
+      else:
+        prop._setter = ac
     try:
       ac = self._parse_accessor_declaration()
       if ac:
@@ -406,7 +403,15 @@ class DefinitionParser(object):
     ai = MemberInfo()
     ai._attributes = self._parse_attributes()
     ai._modifiers = self._parse_modifiers(('protected', 'internal', 'private'))
-    
+    # Reduce the modifiers
+    ai._visibility = None
+    if len(ai._modifiers) > 1:
+      ai._modifiers.remove("internal")
+      ai._modifiers.remove("protected")
+      ai._visibility = "internal protected"
+    elif len(ai._modifiers) == 1:
+      ai._visibility = ai._modifiers[0]
+
     # Next word is either get or set
     if self.skip_word_and_ws('get'):
       ai._name = "get"
@@ -738,13 +743,23 @@ class CSMemberObject(CSObject):
     signode += paramlist
 
   def attach_property(self, signode, info):
-    #attributesopt property-modifiersopt type member-name { accessor-declarations }
+    # accessor-declarations }
     self.attach_attributes(signode, info._attributes)
     self.attach_modifiers(signode, info._modifiers)
     self.attach_type(signode, info._type)
     signode += nodes.Text(u' ')
     signode += addnodes.desc_name(str(info._name), str(info._name))
-
+    
+    signode += nodes.Text(u'{ ')
+    if info._getter:
+      if info._getter._visibility:
+        self.attach_modifiers(signode, [info._getter._visibility])
+      signode += nodes.Text(' get; ')
+    if info._setter:
+      if info._setter._visibility:
+        self.attach_modifiers(signode, [info._setter._visibility])
+      signode += nodes.Text(' set; ')
+    signode += nodes.Text(u'}')
 
 
 class CSCurrentNamespace(Directive):

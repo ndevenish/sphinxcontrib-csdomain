@@ -22,7 +22,7 @@ Contents:
 
   A member method on the class
 
-.. cs:property:: public bool HasErrors { get; }
+.. cs:property:: public bool HasErrors { get; private set; }
 
   A property on the class
 
