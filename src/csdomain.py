@@ -17,10 +17,26 @@ def valid_identifier(string):
   return _identifier_re.match(string) is not None
 
 def full_type_name(type_name):
+  """Returns a type name list to a full string"""
   return ".".join(x['full'] for x in type_name)
 
 def full_attribute_name(attribute_info):
-  raise NotImplementedError()
+  """Returns an attribute dictionary to a full string"""
+  for section in attribute_info:
+    name = "["
+    if section['target']:
+      name += "{} : ".format(section['target'])
+    attributelist = []
+    for attr in section['attributes']:
+      # Build the full attribute
+      fulla = full_type_name(attr['name'])
+      if len(attr['args']):
+        fulla += "(" + ", ".join(attr['args']) + ")"
+      attributelist.append(fulla)
+    name += ", ".join(attributelist)
+    name += "]"
+    return name
+
 
 class DefinitionError(Exception):
     def __init__(self, description):
@@ -168,11 +184,7 @@ class DefinitionParser(object):
     for arg in arguments:
       argspec = ""
       if arg['attributes']:
-        argspec += "["
-        for attr in arg['attributes']:
-          print attr["attributes"]
-          argspec += ", ".join(attr["attributes"])
-        argspec += "] "
+        argspec += full_attribute_name(arg['attributes']) + " "
       if arg['modifiers']:
         argspec += " ".join(arg['modifiers']) + " "
       # argspec += arg['type'] + ' ' + arg['name']
@@ -386,7 +398,7 @@ class DefinitionParser(object):
     self.match(re.compile(r"[^)]*"))
     value = self.matched_text
     self.skip_character_and_ws(')')
-    return value
+    return [value]
 
   def _parse_type_name(self):
     return self._parse_namespace_or_type_name()
