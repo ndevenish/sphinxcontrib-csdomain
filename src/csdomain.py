@@ -331,7 +331,7 @@ class DefinitionParser(object):
     cinfo._name = self._parse_identifier()
     cinfo._type_parameters = self._parse_type_parameter_list()
     if self.skip_character_and_ws(':'):
-      cinfo.bases = self.parse_comma_list(("where", "{"), self._parse_type_name)
+      cinfo._bases = self.parse_comma_list(("where", "{"), self._parse_type_name)
     cinfo._type_parameter_constraints = self._parse_type_parameter_constraints_clauses()
 
     return cinfo
