@@ -675,6 +675,20 @@ class CSObject(ObjectDescription):
       signode += addnodes.desc_annotation(modifier, modifier)
       signode += nodes.Text(' ')
 
+  def before_content(self):
+    lastname = self.names and self.names[-1]
+    if lastname and not self.env.temp_data.get('cs:parent'):
+        assert isinstance(lastname, TypeInfo)
+        self.env.temp_data['cs:parent'] = lastname._name
+        self.parentname_set = True
+    else:
+        self.parentname_set = False
+
+  def after_content(self):
+    if self.parentname_set:
+      self.env.temp_data['cs:parent'] = None
+
+
 class CSClassObject(CSObject):
   def handle_signature(self, sig, signode):
     parser = DefinitionParser(sig)
@@ -730,12 +744,21 @@ class CSMemberObject(CSObject):
     parser = DefinitionParser(sig)
     info = parser.parse_member()
 
+    namespace = self.options.get('namespace', 
+      self.env.temp_data.get('cs:namespace'))
+    parentname = self.env.temp_data.get('cs:parent')
+    print "Parsing within namespace: " + namespace
+    print "   In Class: {}".format(parentname)
+
     if type(info) is MethodInfo:
-      return self.attach_method(signode, info)
+      self.attach_method(signode, info)
     elif type(info) is PropertyInfo:
-      return self.attach_property(signode, info)
+      self.attach_property(signode, info)
     else:
       raise ValueError()
+
+    print info._name
+    return info._name
 
   def attach_method(self, signode, info):
     self.attach_modifiers(signode, info._modifiers)

@@ -34,6 +34,12 @@ Contents:
 
 .. cs:interface:: public interface IVisibleModelClass : IModelClass
 
+  inside the interface, is:
+
+  .. cs:member:: public bool SomeProp { get; }
+
+    Some member property
+
 Indices and tables
 ==================
 
