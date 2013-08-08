@@ -86,7 +86,7 @@ class TypeInfo(object):
     #   self._arguments = arguments
 
     if len(self._arguments):
-      self._full = "{}<{}>".format(_name, ', '.join(_arguments))
+      self._full = "{}<{}>".format(name, ', '.join(x.fqn() for x in arguments))
     else:
       self._full = name
 
@@ -285,9 +285,10 @@ class DefinitionParser(object):
     clike._modifiers = self._parse_class_modifiers()
     clike._partial = self.skip_word_and_ws("partial")
     self.swallow_character_and_ws('class')
-    clike._name = self._parse_identifier()
+    clike._typename = self._parse_type_name()
+    clike._name = clike._typename._name
     # Optional type-parameter list
-    clike._type_parameters = self._parse_type_parameter_list()
+    clike._type_parameters = [x._name for x in clike._typename._arguments]
 
     # (Optional) Class-bases next, starting with :
     if self.skip_character_and_ws(':'):
@@ -676,8 +677,11 @@ class CSObject(ObjectDescription):
       signode += nodes.Text(' ')
 
   def before_content(self):
+    self.parentname_set = False
     lastname = self.names and self.names[-1]
     if lastname and not self.env.temp_data.get('cs:parent'):
+        if not isinstance(lastname, TypeInfo):
+          return
         assert isinstance(lastname, TypeInfo)
         self.env.temp_data['cs:parent'] = lastname._name
         self.parentname_set = True
