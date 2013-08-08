@@ -5,6 +5,7 @@ from sphinx.locale import l_, _
 from sphinx.domains import Domain, ObjType
 from sphinx.util.compat import Directive
 from sphinx.directives import ObjectDescription
+from sphinx.roles import XRefRole
 
 from docutils import nodes
 from sphinx import addnodes
@@ -92,7 +93,7 @@ class TypeInfo(object):
   def fqn(self):
     alln = [self._full]
     if self._namespace:
-      alln = self._namespace.fqn() + [self._full]
+      alln = [self._namespace.fqn(), self._full]
     return ".".join(alln)
 
   def __str__(self):
@@ -632,7 +633,9 @@ class DefinitionParser(object):
 
     if self.skip_character_and_ws('.'):
       # Grab another namespace
-      tname._namespace = self._parse_namespace_or_type_name()
+      newname = self._parse_namespace_or_type_name()
+      newname._namespace = tname
+      tname = newname
     return tname
 
   def _parse_type(self):
@@ -796,15 +799,13 @@ class CSCurrentNamespace(Directive):
       env.temp_data['cs:namespace'] = None
     else:
       # Only allow alphanumeric and ./_
-
-      # Parse the namespace definition
-      parts = self.arguments[0].strip().split(".")
-      if any([not valid_identifier(x) for x in parts]):
-        self.state_machine.reporter.warning("Not a valid namespace: " + ".".join(parts),
-                                            line=self.lineno)
-      env.temp_data["cs:namespace"] = ".".join(parts)
+      parser = DefinitionParser(self.arguments[0])
+      name = parser._parse_namespace_name()
+      env.temp_data["cs:namespace"] = name.fqn()
     return []
 
+class CSXRefRole(XRefRole):
+  pass
 
 class CSharpDomain(Domain):
   """C# language domain."""
@@ -830,6 +831,12 @@ class CSharpDomain(Domain):
   }
 
   roles = {
+    'class':      CSXRefRole(),
+    'member':     CSXRefRole(),
+    'interface':  CSXRefRole(),
+    'method':     CSXRefRole(),
+    'property':   CSXRefRole(),
+    
       # 'func' :  CXRefRole(fix_parens=True),
       # 'member': CXRefRole(),
       # 'macro':  CXRefRole(),
