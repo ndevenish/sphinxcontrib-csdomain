@@ -55,7 +55,12 @@ class TestDefinitionParser(unittest.TestCase):
   def testClassNamespacing(self):
     cl = DefinitionParser("public class test.namespace.ViewModel").parse_classlike()
     assert cl._name == "ViewModel"
-    self.assertEqual(cl._typename.fqn(), "test.namespace.ViewModel")
+    self.assertEqual(cl._full_name.fqn(), "test.namespace.ViewModel")
+
+  def testQualifiedMember(self):
+    mi = DefinitionParser("public bool ViewModel.HasErrors()").parse_member()
+    self.assertEqual(mi._name, "HasErrors")
+    self.assertEqual(mi._full_name.fqn(), "ViewModel.HasErrors")
 
 class TestParts(unittest.TestCase):
   def testNamespace(self):

@@ -19,6 +19,7 @@ class MemberInfo(object):
   _modifiers = []
   _name = None
   _type = None
+  _full_name = None
 
 class MethodInfo(MemberInfo):
   _arguments = None
@@ -155,7 +156,10 @@ class DefinitionParser(object):
   def swallow_character_and_ws(self, char):
     """Skips a character and any trailing whitespace, but raises DefinitionError if not found"""
     if not self.skip_character_and_ws(char):
-      raise DefinitionError("Unexpected token: '{}'; Expected '{}'".format(self.definition[self.pos], char))
+      if not self.eof:
+        raise DefinitionError("Unexpected token: '{}'; Expected '{}'".format(self.definition[self.pos], char))
+      else:
+        raise DefinitionError("Unexpected end-of-string; Expected '{}'".format(char))
 
   def skip_ws(self):
     return self.match(_whitespace_re)
@@ -286,10 +290,10 @@ class DefinitionParser(object):
     clike._modifiers = self._parse_class_modifiers()
     clike._partial = self.skip_word_and_ws("partial")
     self.swallow_character_and_ws('class')
-    clike._typename = self._parse_type_name()
-    clike._name = clike._typename._name
+    clike._full_name = self._parse_type_name()
+    clike._name = clike._full_name._name
     # Optional type-parameter list
-    clike._type_parameters = [x._name for x in clike._typename._arguments]
+    clike._type_parameters = [x._name for x in clike._full_name._arguments]
 
     # (Optional) Class-bases next, starting with :
     if self.skip_character_and_ws(':'):
@@ -330,8 +334,9 @@ class DefinitionParser(object):
     cinfo._partial = self.skip_word_and_ws('partial')
     self.swallow_character_and_ws('interface')
     cinfo._classlike_category = 'interface'
-    cinfo._name = self._parse_identifier()
-    cinfo._type_parameters = self._parse_type_parameter_list()
+    cinfo._full_name = self._parse_type_name()
+    cinfo._name = cinfo._full_name._name
+    cinfo._type_parameters = [x._name for x in cinfo._full_name._arguments]
     if self.skip_character_and_ws(':'):
       cinfo._bases = self.parse_comma_list(("where", "{"), self._parse_type_name)
     cinfo._type_parameter_constraints = self._parse_type_parameter_constraints_clauses()
@@ -362,7 +367,9 @@ class DefinitionParser(object):
     method._type = self._parse_returntype()
     
     # The member name
-    method._name = self._parse_member_name()
+    method._full_name = self._parse_type_name()
+    # method._name = self._parse_member_name()
+    method._name = method._full_name._name
 
     # The argument list
     self.swallow_character_and_ws('(')
@@ -682,8 +689,6 @@ class CSObject(ObjectDescription):
     self.parentname_set = False
     lastname = self.names and self.names[-1]
     if lastname and not self.env.temp_data.get('cs:parent'):
-        if not isinstance(lastname, TypeInfo):
-          return
         assert isinstance(lastname, TypeInfo)
         self.env.temp_data['cs:parent'] = lastname._name
         self.parentname_set = True
@@ -745,6 +750,8 @@ class CSClassObject(CSObject):
         signode += addnodes.desc_annotation(', ', ', ')
       signode.pop()
 
+    return clike._full_name
+
 class CSMemberObject(CSObject):
   def handle_signature(self, sig, signode):
     parser = DefinitionParser(sig)
@@ -763,8 +770,9 @@ class CSMemberObject(CSObject):
     else:
       raise ValueError()
 
-    print info._name
-    return info._name
+    print "Member: "
+    print info._full_name
+    return info._full_name
 
   def attach_method(self, signode, info):
     self.attach_modifiers(signode, info._modifiers)
