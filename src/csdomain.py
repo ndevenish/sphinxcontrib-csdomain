@@ -80,10 +80,6 @@ class TypeInfo(object):
   def __init__(self, name, arguments=[]):
     self._name = name
     self._arguments = arguments
-    # if arguments is None:
-    #   self._arguments = []
-    # else:
-    #   self._arguments = arguments
 
     if len(self._arguments):
       self._full = "{}<{}>".format(name, ', '.join(x.fqn() for x in arguments))
@@ -95,6 +91,11 @@ class TypeInfo(object):
     if self._namespace:
       alln = [self._namespace.fqn(), self._full]
     return ".".join(alln)
+
+  def deepest_namespace(self):
+    if self._namespace:
+      return self._namespace.deepest_namespace()
+    return self
 
   def __str__(self):
     return self.fqn()
@@ -631,11 +632,12 @@ class DefinitionParser(object):
     name = self._parse_identifier()
     args = self._parse_type_argument_list()
     tname = TypeInfo(name, args)
-
+    # print "Remaining after initial parse: "  +self.definition[self.pos:]
     if self.skip_character_and_ws('.'):
       # Grab another namespace
       newname = self._parse_namespace_or_type_name()
-      newname._namespace = tname
+      newname.deepest_namespace()._namespace = tname
+
       tname = newname
     return tname
 

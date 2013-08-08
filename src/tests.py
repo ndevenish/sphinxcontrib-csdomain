@@ -28,7 +28,6 @@ class TestDefinitionParser(unittest.TestCase):
     self.assertEqual(cl._classlike_category, "interface")
 
   def testInterfaceWithBase(self):
-    print "==== Interface With Base ===="
     cl = DefinitionParser('public interface ITC : IViewModel').parse_classlike()
     assert ["IViewModel"] == [x.fqn() for x in cl._bases]
 
@@ -52,3 +51,15 @@ class TestDefinitionParser(unittest.TestCase):
 
     p = DefinitionParser("public bool HasErrors { get; }").parse_member()
     self.assertIsNone(p._setter)
+
+  def testClassNamespacing(self):
+    cl = DefinitionParser("public class test.namespace.ViewModel").parse_classlike()
+    assert cl._name == "ViewModel"
+    self.assertEqual(cl._typename.fqn(), "test.namespace.ViewModel")
+
+class TestParts(unittest.TestCase):
+  def testNamespace(self):
+    dp = DefinitionParser("test.namespace.ViewModel")
+    tn = dp._parse_type_name()
+    self.assertEqual(tn._name, "ViewModel")
+    self.assertEqual(tn.fqn(), "test.namespace.ViewModel")
