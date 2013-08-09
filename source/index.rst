@@ -12,9 +12,6 @@ Contents:
    :maxdepth: 2
 
 
-.. py:class:: CSObject(arg1, arg2)
-   :module: sphinx.whatever
-
 ..  cs:method:: public void SetError(bool hasError, string description = null, [CallerMemberName] string property = null)
     :namespace: StylePack.Foo
 
