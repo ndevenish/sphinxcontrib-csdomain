@@ -12,13 +12,24 @@ Contents:
    :maxdepth: 2
 
 
+.. py:class:: CSObject(arg1, arg2)
+   :module: sphinx.whatever
+
+..  cs:method:: public void SetError(bool hasError, string description = null, [CallerMemberName] string property = null)
+    :namespace: StylePack.Foo
+
+    A member method on the class
+
+  
+
 .. cs:namespace:: StylePack.Utils
 
-.. cs:class:: protected class ViewModel<T, Q> : IViewModel, IEditableObject, INotifyDataErrorInfo where T : class, IModelClass, new()
+..  cs:class:: protected class ViewModel<T, Q> : IViewModel, IEditableObject, INotifyDataErrorInfo where T : class, IModelClass, new()
+    :namespace: StylePack.Another
+    
+    The parent ViewModel
 
-  The parent ViewModel
-
-.. cs:method:: public void SetError(bool hasError, string description = null, [CallerMemberName] string property = null)
+..  cs:method:: public void SetError(bool hasError, string description = null, [CallerMemberName] string property = null)
 
   A member method on the class
 

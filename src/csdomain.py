@@ -1,13 +1,16 @@
 #coding: utf-8
 
 import re
+
+from docutils.parsers.rst import directives
+from docutils import nodes
+
 from sphinx.locale import l_, _
 from sphinx.domains import Domain, ObjType
 from sphinx.util.compat import Directive
 from sphinx.directives import ObjectDescription
 from sphinx.roles import XRefRole
 
-from docutils import nodes
 from sphinx import addnodes
 
 _identifier_re = re.compile(r'(~?\b[a-zA-Z_][a-zA-Z0-9_]*)\b')
@@ -663,8 +666,15 @@ class DefinitionParser(object):
     return visibility
 
 class CSObject(ObjectDescription):
+
+  option_spec = {
+      'namespace': directives.unchanged,
+  }
+
+
   def attach_name(self, signode, name):
-    namespace = self.env.temp_data.get('cs:namespace')
+    namespace = self.options.get('namespace', 
+      self.env.temp_data.get('cs:namespace'))
     if namespace:
       for space in namespace.split('.'):
         signode += addnodes.desc_addname(space, space)
@@ -704,6 +714,14 @@ class CSClassObject(CSObject):
   def handle_signature(self, sig, signode):
     parser = DefinitionParser(sig)
     clike = parser.parse_classlike()
+
+    namespace = self.options.get('namespace', 
+      self.env.temp_data.get('cs:namespace'))
+
+    parentname = self.env.temp_data.get('cs:parent')
+    print "Class  within namespace: " + str(namespace)
+    print "   In Class: {}".format(parentname)
+
 
     visibility = clike.visibility
     modifiers = clike._modifiers
@@ -753,6 +771,8 @@ class CSClassObject(CSObject):
     return clike._full_name
 
 class CSMemberObject(CSObject):
+
+
   def handle_signature(self, sig, signode):
     parser = DefinitionParser(sig)
     info = parser.parse_member()
@@ -760,7 +780,7 @@ class CSMemberObject(CSObject):
     namespace = self.options.get('namespace', 
       self.env.temp_data.get('cs:namespace'))
     parentname = self.env.temp_data.get('cs:parent')
-    print "Parsing within namespace: " + namespace
+    print "Member within namespace: " + str(namespace)
     print "   In Class: {}".format(parentname)
 
     if type(info) is MethodInfo:
@@ -769,9 +789,6 @@ class CSMemberObject(CSObject):
       self.attach_property(signode, info)
     else:
       raise ValueError()
-
-    print "Member: "
-    print info._full_name
     return info._full_name
 
   def attach_method(self, signode, info):
