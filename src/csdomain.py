@@ -710,6 +710,7 @@ class CSObject(ObjectDescription):
       signode += nodes.Text(' ')
 
   def attach_visibility(self, signode, visibility):
+    # print "Vis: {}/{}".format(visibility,self.env.temp_data.get('cs:visibility'))
     if visibility and visibility != self.env.temp_data.get('cs:visibility'):
       signode += addnodes.desc_annotation(visibility, visibility)
       signode += nodes.Text(' ')
@@ -860,6 +861,11 @@ class CSMemberObject(CSObject):
 
   def attach_property(self, signode, info):
     # accessor-declarations }
+    visibility = info.visibility
+    if visibility in info._modifiers:
+      info._modifiers.remove(visibility)
+    self.attach_visibility(signode, visibility)
+
     self.attach_attributes(signode, info._attributes)
     self.attach_modifiers(signode, info._modifiers)
     self.attach_type(signode, info._type)
