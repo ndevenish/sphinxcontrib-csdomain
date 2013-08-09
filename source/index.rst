@@ -16,7 +16,24 @@ Contents:
 ..  cs:method:: public void SetError(bool hasError, string description = null, [CallerMemberName] string property = null)
     :namespace: StylePack.Foo
 
+    Some before markup
+    
+    :param hasError: Whether there is an error or not
+    :returns: Nothing
+
+    Some extra markup...
+    
+    :param etype: exception type
+    :param value: exception value
+    :param tb: traceback object
+    :param limit: maximum number of stack frames to show
+    :type limit: integer or None
+    :rtype: list of strings
+    :randomextra: What
+    
     A member method on the class
+
+    .. seealso:: Something Random
 
   
 .. cs:visibility:: public

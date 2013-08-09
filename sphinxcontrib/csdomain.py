@@ -10,6 +10,7 @@ from sphinx.domains import Domain, ObjType
 from sphinx.util.compat import Directive
 from sphinx.directives import ObjectDescription
 from sphinx.roles import XRefRole
+from sphinx.util.docfields import Field, GroupedField
 
 from sphinx import addnodes
 
@@ -703,6 +704,18 @@ class CSObject(ObjectDescription):
   option_spec = {
       'namespace': directives.unchanged,
   }
+
+  doc_field_types = [
+    GroupedField('parameter', label=l_('Parameters'),
+                 names=('param', 'parameter', 'arg', 'argument'),
+                 can_collapse=True),
+    GroupedField('exceptions', label=l_('Throws'), rolename='cpp:class',
+                 names=('throws', 'throw', 'exception'),
+                 can_collapse=True),
+    Field('returnvalue', label=l_('Returns'), has_arg=False,
+          names=('returns', 'return')),
+    ]
+
 
   def resolve_current_namespace(self):
     namespace = self.env.temp_data.get('cs:namespace')
