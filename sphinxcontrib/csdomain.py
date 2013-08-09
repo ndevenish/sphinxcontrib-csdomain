@@ -1115,5 +1115,14 @@ class CSharpDomain(Domain):
     return make_refnode(builder, fromdocname, 
       match[0],match[2].fqn(), contnode, target)
 
+  def get_objects(self):
+    for refname, (docname, typen, fullname) in self.data['objects'].iteritems():
+      yield (refname, refname, typen, docname, refname, 1)
+
+  def clear_doc(self, docname):
+    for fullname, (fn, _, _) in self.data['objects'].iteritems():
+      if fn == docname:
+        del self.data['objects'][fullname]
+
 def setup(app):
   app.add_domain(CSharpDomain)
