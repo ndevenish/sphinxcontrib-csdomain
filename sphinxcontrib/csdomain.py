@@ -687,6 +687,20 @@ class CSObject(ObjectDescription):
       'namespace': directives.unchanged,
   }
 
+  def resolve_actual_namespace(self):
+    namespace = self.env.temp_data.get('cs:namespace')
+    parentname = self.env.temp_data.get('cs:parent')
+    if parentname:
+      namespace = parentname.fqn()
+    if self.options.get('namespace', False):
+      namespace = self.options.get('namespace')
+    if namespace and parentname and not namespace.startswith(parentname.fqn()):
+      self.state_machine.reporter.warning(
+        "Child namespace {} does not appear to be child of parent {}"
+        .format(namespace, parentname)
+        , line=self.lineno)
+    return namespace
+
 
   def attach_name(self, signode, namespace, name):
     if namespace:
@@ -799,24 +813,14 @@ class CSClassObject(CSObject):
 
 class CSMemberObject(CSObject):
 
-
   def handle_signature(self, sig, signode):
     parser = DefinitionParser(sig)
     info = parser.parse_member()
 
-    namespace = self.options.get('namespace', 
-      self.env.temp_data.get('cs:namespace'))
-    parentname = self.env.temp_data.get('cs:parent')
+    
+    namespace = self.resolve_actual_namespace()
     if namespace:
       namespace_type = DefinitionParser(namespace)._parse_namespace_name()
-      # Validate these are compatible
-      if parentname:
-        # if not parentname.fqn().startswith(namespace_type.fqn()):
-        #   self.state_machine.reporter.warning(
-        #     "Namespace Mismatch: Child has namespace {}, does not match parent {}"
-        #     .format(namespace_type.fqn(), parentname.fqn()))
-        #   raise ValueError("Namespace Mismatch")
-        namespace_type = parentname
 
       # Now, re-resolve with the parsed namespace
       if not info._full_name.fqn().startswith(namespace_type.fqn()):
@@ -824,7 +828,7 @@ class CSMemberObject(CSObject):
         namespace = info._full_name.namespace_fqn()
 
     print "Member {} within namespace: {}".format(info._name, namespace)
-    print "   In Class: {}".format(parentname)
+    # print "   In Class: {}".format(parentname)
 
     if type(info) is MethodInfo:
       self.attach_method(signode, info)
@@ -846,6 +850,8 @@ class CSMemberObject(CSObject):
       signode += nodes.Text(u' ')
     signode += addnodes.desc_name(str(info._name), str(info._name))
 
+    # self.attach_name(signode, namespace, info._name)
+    
     paramlist = addnodes.desc_parameterlist()
     for arg in info._arguments:
       param = addnodes.desc_parameter('', '', noemph=True)
