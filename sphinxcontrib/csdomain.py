@@ -1119,11 +1119,11 @@ class CSharpDomain(Domain):
       match[0],match[2]._full_name.fqn(), contnode, target)
 
   def get_objects(self):
-    for refname, (docname, typen, fullname) in self.data['objects'].iteritems():
+    for refname, (docname, typen, fullname) in self.data['objects'].items():
       yield (refname, refname, typen, docname, refname, 1)
 
   def clear_doc(self, docname):
-    for fullname, (fn, _, _) in self.data['objects'].iteritems():
+    for fullname, (fn, _, _) in self.data['objects'].items():
       if fn == docname:
         del self.data['objects'][fullname]
 
