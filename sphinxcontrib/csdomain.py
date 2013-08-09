@@ -11,6 +11,7 @@ from sphinx.util.compat import Directive
 from sphinx.directives import ObjectDescription
 from sphinx.roles import XRefRole
 from sphinx.util.docfields import Field, GroupedField
+from sphinx.util.nodes import make_refnode
 
 from sphinx import addnodes
 
@@ -1063,7 +1064,41 @@ class CSharpDomain(Domain):
       'objects': {},  # fullname -> docname, objtype
   }
 
+  def find_obj(self, env, namespace, typ, target):
+    # Find anything with the target
+    matches = [x for x in self.data['objects'].iterkeys() if x.endswith(target)]
+    # print self.data['objects'].keys()
+    # print "Found: " + str(basic_targets)
+    if not matches:
+      return None
+    if len(matches) > 1:
+      env.warn_node(
+        'more than one target found for cross-reference '
+        '%r: %s' % (target, ', '.join(match[0] for match in matches)),
+        node)
+    return self.data['objects'][matches[0]]
 
+
+
+
+  def resolve_xref(self, env, fromdocname, builder,
+                   typ, target, node, contnode):
+    print "Resolving XRef"
+    print "  fromdocname: {}".format(fromdocname)
+    print "  builder:     {}".format(builder)
+    print "  typ:         {}".format(typ)
+    print "  target:      {}".format(target)
+    print "  node:        {}".format(node)
+    print "  contnode:    {}".format(contnode)
+
+    # Firstly, parse this node into C# form
+    target_t = TypeInfo.FromNamespace(target)
+    target = target_t.fqn()
+
+    match = self.find_obj(env, None, typ, target)
+    print "Found match: " + str(match)
+    return make_refnode(builder, fromdocname, 
+      match[0],match[2].fqn(), contnode, target)
 
 def setup(app):
   app.add_domain(CSharpDomain)

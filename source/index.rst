@@ -33,7 +33,7 @@ Contents:
     
     A member method on the class
 
-    .. seealso:: Something Random
+    .. seealso:: SSome more details might be in the class :cs:class:`IVisibleModelClass`
 
   
 .. cs:visibility:: public
