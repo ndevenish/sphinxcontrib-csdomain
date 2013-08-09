@@ -100,7 +100,11 @@ class TypeInfo(object):
     if self._namespace:
       return self._namespace.deepest_namespace()
     return self
-
+  def namespace_fqn(self):
+    if self._namespace:
+      return self._namespace.fqn()
+    return None
+  
   def __str__(self):
     return self.fqn()
 
@@ -422,7 +426,9 @@ class DefinitionParser(object):
     method = MethodInfo()
     method._attributes = self._parse_attributes()
     method._modifiers = self._parse_constructor_modifiers()
-    method._name = self._parse_identifier()
+    method._full_name = self._parse_type_name()
+    method._name = method._full_name._name
+
     self.swallow_character_and_ws('(')
     method._arguments = self._parse_formal_argument_list()
     self.swallow_character_and_ws(')')
@@ -434,7 +440,8 @@ class DefinitionParser(object):
     prop._attributes = self._parse_attributes()
     prop._modifiers = self._parse_property_modifiers()
     prop._type = self._parse_type()
-    prop._name = self._parse_member_name()
+    prop._full_name = self._parse_type_name()
+    prop._name = prop._full_name._name
     
     self.swallow_character_and_ws('{')
     ac = self._parse_accessor_declaration()
@@ -672,9 +679,7 @@ class CSObject(ObjectDescription):
   }
 
 
-  def attach_name(self, signode, name):
-    namespace = self.options.get('namespace', 
-      self.env.temp_data.get('cs:namespace'))
+  def attach_name(self, signode, namespace, name):
     if namespace:
       for space in namespace.split('.'):
         signode += addnodes.desc_addname(space, space)
@@ -700,7 +705,7 @@ class CSObject(ObjectDescription):
     lastname = self.names and self.names[-1]
     if lastname and not self.env.temp_data.get('cs:parent'):
         assert isinstance(lastname, TypeInfo)
-        self.env.temp_data['cs:parent'] = lastname._name
+        self.env.temp_data['cs:parent'] = lastname
         self.parentname_set = True
     else:
         self.parentname_set = False
@@ -715,13 +720,20 @@ class CSClassObject(CSObject):
     parser = DefinitionParser(sig)
     clike = parser.parse_classlike()
 
+    # Work out our namespace by combining sources
     namespace = self.options.get('namespace', 
       self.env.temp_data.get('cs:namespace'))
+    if namespace:
+      # Merge the classlike type namespace with this namespace to give a fqn
+      given_namespace = DefinitionParser(namespace)._parse_namespace_name()
+      given_fqn = given_namespace.fqn()
+      clike_fqn = clike._full_name.fqn()
+      if not clike_fqn.startswith(given_fqn):
+        clike._full_name.deepest_namespace()._namespace = given_namespace
+      # Re-assign the resolved namespace
+      namespace = clike._full_name.namespace_fqn()
 
-    parentname = self.env.temp_data.get('cs:parent')
-    print "Class  within namespace: " + str(namespace)
-    print "   In Class: {}".format(parentname)
-
+    # parentname = self.env.temp_data.get('cs:parent')
 
     visibility = clike.visibility
     modifiers = clike._modifiers
@@ -742,7 +754,7 @@ class CSClassObject(CSObject):
     signode += addnodes.desc_annotation(clike_category, clike_category)
 
     # Handle the name
-    self.attach_name(signode, clike._name)
+    self.attach_name(signode, namespace, clike._name)
     
     if clike._type_parameters:
       signode += addnodes.desc_annotation('<', '<')
@@ -780,7 +792,20 @@ class CSMemberObject(CSObject):
     namespace = self.options.get('namespace', 
       self.env.temp_data.get('cs:namespace'))
     parentname = self.env.temp_data.get('cs:parent')
-    print "Member within namespace: " + str(namespace)
+    if namespace:
+      namespace_type = DefinitionParser(namespace)._parse_namespace_name()
+      # Validate these are compatible
+      if parentname:
+        if not parentname.fqn().startswith(namespace_type.fqn()):
+          raise ValueError("Namespace Mismatch")
+        namespace_type = parentname
+        
+      # Now, re-resolve with the parsed namespace
+      if not info._full_name.fqn().startswith(namespace_type.fqn()):
+        info._full_name.deepest_namespace()._namespace = namespace_type
+        namespace = info._full_name.namespace_fqn()
+
+    print "Member {} within namespace: {}".format(info._name, namespace)
     print "   In Class: {}".format(parentname)
 
     if type(info) is MethodInfo:

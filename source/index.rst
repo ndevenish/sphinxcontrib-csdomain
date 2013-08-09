@@ -48,7 +48,7 @@ Contents:
   inside the interface, is:
 
   .. cs:member:: public bool SomeProp { get; }
-
+    
     Some member property
 
 Indices and tables
