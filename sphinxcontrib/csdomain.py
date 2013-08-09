@@ -1064,39 +1064,54 @@ class CSharpDomain(Domain):
       'objects': {},  # fullname -> docname, objtype
   }
 
-  def find_obj(self, env, namespace, typ, target):
+  def find_obj(self, env, namespace, typ, target, node):
+    objects = self.data['objects']
     # Find anything with the target
-    matches = [x for x in self.data['objects'].iterkeys() if x.endswith(target)]
-    # print self.data['objects'].keys()
-    # print "Found: " + str(basic_targets)
-    if not matches:
-      return None
+    matches = [x for x in objects.iterkeys() if x.lower().endswith(target.lower())]
+    # print "Found: " + str(matches)
     if len(matches) > 1:
-      env.warn_node(
-        'more than one target found for cross-reference '
-        '%r: %s' % (target, ', '.join(match[0] for match in matches)),
-        node)
-    return self.data['objects'][matches[0]]
+      env.warn_node('more than one target found for cross-reference ', node)
+    if len(matches) == 1:
+      return objects[matches[0]]
 
+    # Try direct names (ignoring, e.g. arguments)
+    matches = [x for x in objects.itervalues() if target.lower() == x[2]._name.lower()]
+    if len(matches) == 1:
+      return matches[0]
+
+    # Try a different approach. Look for all keys with this in
+    matches = [x for x in objects.iterkeys() if target.lower() in x.lower()]
+    if matches:
+      # print "Anywhere matches: " + str(matches)
+      def _sort_match(x, y):
+        tgt = target.lower()
+        return cmp(len(x) - x.lower().index(tgt), len(y) - y.lower().index(tgt))
+      matches.sort(cmp=_sort_match)
+      # print "Best Match: " + str(matches[0])
+      env.warn_node('Could not find explicit node for {}, using fallback of nearest-end: {}'
+        .format(target, matches[0]), node)
 
 
 
   def resolve_xref(self, env, fromdocname, builder,
                    typ, target, node, contnode):
-    print "Resolving XRef"
-    print "  fromdocname: {}".format(fromdocname)
-    print "  builder:     {}".format(builder)
-    print "  typ:         {}".format(typ)
-    print "  target:      {}".format(target)
-    print "  node:        {}".format(node)
-    print "  contnode:    {}".format(contnode)
+    # print "Resolving XRef"
+    # print "  fromdocname: {}".format(fromdocname)
+    # print "  builder:     {}".format(builder)
+    # print "  typ:         {}".format(typ)
+    # print "  target:      {}".format(target)
+    # print "  node:        {}".format(node)
+    # print "  contnode:    {}".format(contnode)
 
     # Firstly, parse this node into C# form
     target_t = TypeInfo.FromNamespace(target)
     target = target_t.fqn()
 
-    match = self.find_obj(env, None, typ, target)
-    print "Found match: " + str(match)
+    match = self.find_obj(env, None, typ, target, node)
+    if not match:
+      return None
+
+    # print "Found match: " + str(match)
     return make_refnode(builder, fromdocname, 
       match[0],match[2].fqn(), contnode, target)
 

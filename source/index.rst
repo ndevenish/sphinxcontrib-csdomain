@@ -11,6 +11,8 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   secondindex
+
 
 
 ..  cs:method:: public void SetError(bool hasError, string description = null, [CallerMemberName] string property = null)
