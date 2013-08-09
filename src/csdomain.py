@@ -24,12 +24,27 @@ class MemberInfo(object):
   _type = None
   _full_name = None
 
+  @property
+  def visibility(self):
+    vis_modifiers = ('public', 'protected', 'private', 'internal')
+    visibility = set(self._modifiers).intersection(set(vis_modifiers))
+    if not visibility:
+      return None
+    return visibility.pop()
+
+
 class MethodInfo(MemberInfo):
   _arguments = None
+  valid_modifiers = ('new', 'public', 'protected', 'internal', 'private',
+                   'static', 'virtual', 'sealed', 'override', 'abstract',
+                   'extern')
 
 class PropertyInfo(MemberInfo):
   _setter = None
   _getter = None
+  valid_modifiers = ('new', 'public', 'protected', 'internal', 'private',
+                   'static', 'virtual', 'sealed', 'override', 'abstract',
+                   'extern')
 
 class AttributeSectionInfo(object):
   _target = None
@@ -104,7 +119,7 @@ class TypeInfo(object):
     if self._namespace:
       return self._namespace.fqn()
     return None
-  
+
   def __str__(self):
     return self.fqn()
 
@@ -559,16 +574,10 @@ class DefinitionParser(object):
     return self._parse_modifiers(valid_modifiers)
 
   def _parse_method_modifiers(self):
-    valid_modifiers = ('new', 'public', 'protected', 'internal', 'private',
-                       'static', 'virtual', 'sealed', 'override', 'abstract',
-                       'extern')
-    return self._parse_modifiers(valid_modifiers)
+    return self._parse_modifiers(MethodInfo.valid_modifiers)
 
   def _parse_property_modifiers(self):
-    valid_modifiers = ('new', 'public', 'protected', 'internal', 'private',
-                       'static', 'virtual', 'sealed', 'override', 'abstract',
-                       'extern')
-    return self._parse_modifiers(valid_modifiers)
+    return self._parse_modifiers(PropertyInfo.valid_modifiers)
 
   def _parse_modifiers(self, valid_modifiers):
     modifiers = []
@@ -700,6 +709,11 @@ class CSObject(ObjectDescription):
       signode += addnodes.desc_annotation(modifier, modifier)
       signode += nodes.Text(' ')
 
+  def attach_visibility(self, signode, visibility):
+    if visibility and visibility != self.env.temp_data.get('cs:visibility'):
+      signode += addnodes.desc_annotation(visibility, visibility)
+      signode += nodes.Text(' ')
+
   def before_content(self):
     self.parentname_set = False
     lastname = self.names and self.names[-1]
@@ -739,9 +753,8 @@ class CSClassObject(CSObject):
     modifiers = clike._modifiers
     if visibility in modifiers:
       modifiers.remove(visibility)
-    if visibility:
-      signode += addnodes.desc_annotation(visibility, visibility)
-      signode += nodes.Text(' ')
+    self.attach_visibility(signode, visibility)
+
     if clike.static:
       modifiers.remove('static')
       signode += addnodes.desc_annotation('static', 'static')
@@ -799,7 +812,7 @@ class CSMemberObject(CSObject):
         if not parentname.fqn().startswith(namespace_type.fqn()):
           raise ValueError("Namespace Mismatch")
         namespace_type = parentname
-        
+
       # Now, re-resolve with the parsed namespace
       if not info._full_name.fqn().startswith(namespace_type.fqn()):
         info._full_name.deepest_namespace()._namespace = namespace_type
@@ -817,6 +830,11 @@ class CSMemberObject(CSObject):
     return info._full_name
 
   def attach_method(self, signode, info):
+
+    visibility = info.visibility
+    if visibility in info._modifiers:
+      info._modifiers.remove(visibility)
+    self.attach_visibility(signode, visibility)
     self.attach_modifiers(signode, info._modifiers)
     if info._type:
       self.attach_type(signode, info._type)
@@ -883,6 +901,23 @@ class CSCurrentNamespace(Directive):
       env.temp_data["cs:namespace"] = name.fqn()
     return []
 
+class CSDefaultVisibility(Directive):
+  """This tells sphinx what the default visibility is"""
+  has_content = False
+  required_arguments = 1
+  optional_arguments = 0
+  final_argument_whitespace = True
+  option_spec = {}
+
+  def run(self):
+    env = self.state.document.settings.env
+    vis = self.arguments[0].strip().lower()
+    if vis in ('public', 'protected', 'internal', 'private'):
+      env.temp_data["cs:visibility"] = vis
+    else:
+      env.temp_data['cs:visibility'] = None
+    return []
+
 class CSXRefRole(XRefRole):
   pass
 
@@ -906,7 +941,8 @@ class CSharpDomain(Domain):
       'property':     CSMemberObject,
       'member':       CSMemberObject,
       
-      'namespace':    CSCurrentNamespace
+      'namespace':    CSCurrentNamespace,
+      'visibility':   CSDefaultVisibility,
   }
 
   roles = {

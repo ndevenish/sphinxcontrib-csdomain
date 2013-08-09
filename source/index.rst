@@ -12,12 +12,14 @@ Contents:
    :maxdepth: 2
 
 
+
 ..  cs:method:: public void SetError(bool hasError, string description = null, [CallerMemberName] string property = null)
     :namespace: StylePack.Foo
 
     A member method on the class
 
   
+.. cs:visibility:: public
 
 .. cs:namespace:: StylePack.Utils
 
@@ -33,6 +35,7 @@ Contents:
 .. cs:property:: public bool HasErrors { get; private set; }
 
   A property on the class
+
 
 .. cs:member:: public bool HasErrors { get; }
 
