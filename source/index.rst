@@ -46,6 +46,11 @@ Contents:
     
     Some member property
 
+.. cs:member:: public bool SomeProp { get; }
+  :namespace: another.namespace
+  
+  Some member property
+
 Indices and tables
 ==================
 

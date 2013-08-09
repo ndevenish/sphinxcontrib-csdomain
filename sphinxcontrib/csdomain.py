@@ -96,6 +96,11 @@ class TypeInfo(object):
   _full = None
   _namespace = None
 
+
+  @staticmethod
+  def FromNamespace(name):
+    return DefinitionParser(name)._parse_namespace_name()
+
   def __init__(self, name, arguments=[]):
     self._name = name
     self._arguments = arguments
@@ -119,8 +124,20 @@ class TypeInfo(object):
     if self._namespace:
       return self._namespace.fqn()
     return None
+  
+  def flatten_namespace(self):
+    if self._namespace:
+      return self._namespace.flatten_namespace() + [self._full]
+    return [self._full]
 
+  def merge_onto(self, namespace):
+    if not type(namespace) == TypeInfo:
+      namespace = TypeInfo.FromNamespace(namespace)
+    if not self.fqn().startswith(namespace.fqn()):
+      self.deepest_namespace()._namespace = namespace
+  
   def __str__(self):
+
     return self.fqn()
 
   def __repr__(self):
@@ -687,7 +704,7 @@ class CSObject(ObjectDescription):
       'namespace': directives.unchanged,
   }
 
-  def resolve_actual_namespace(self):
+  def resolve_current_namespace(self):
     namespace = self.env.temp_data.get('cs:namespace')
     parentname = self.env.temp_data.get('cs:parent')
     if parentname:
@@ -701,13 +718,34 @@ class CSObject(ObjectDescription):
         , line=self.lineno)
     return namespace
 
+  def resolve_previous_namespace(self):
+    namespace = self.env.temp_data.get('cs:namespace')
+    parentname = self.env.temp_data.get('cs:parent')
+    if parentname:
+      namespace = parentname.fqn()
+    return namespace
 
-  def attach_name(self, signode, namespace, name):
-    if namespace:
-      for space in namespace.split('.'):
-        signode += addnodes.desc_addname(space, space)
-        signode += nodes.Text('.')
-    signode += addnodes.desc_name(name, name)
+
+  def attach_name(self, signode, full_name):
+    """Attaches a fully qualified TypeInfo name to the node tree"""
+    # Get the previous namespace
+    prev_namespace = self.resolve_previous_namespace()
+    if prev_namespace:
+      curr = full_name.fqn()
+      if full_name.fqn().startswith(prev_namespace):
+        # print "Partially filled by parent: "
+        # print "  Cutting from " + full_name.fqn()
+        new_fqn = full_name.fqn()[len(prev_namespace)+1:]
+        full_name = TypeInfo.FromNamespace(new_fqn)
+        # print "            to " + full_name.fqn()
+
+    names = full_name.flatten_namespace()
+
+    for space in names[:-1]:
+      signode += addnodes.desc_addname(space, space)
+      signode += nodes.Text('.')
+
+    signode += addnodes.desc_name(names[-1], names[-1])
 
 
   def attach_type(self, signode, typename):
@@ -734,6 +772,7 @@ class CSObject(ObjectDescription):
     lastname = self.names and self.names[-1]
     if lastname and not self.env.temp_data.get('cs:parent'):
         assert isinstance(lastname, TypeInfo)
+        self.previous_parent = self.env.temp_data.get('cs:parent')
         self.env.temp_data['cs:parent'] = lastname
         self.parentname_set = True
     else:
@@ -741,7 +780,7 @@ class CSObject(ObjectDescription):
 
   def after_content(self):
     if self.parentname_set:
-      self.env.temp_data['cs:parent'] = None
+      self.env.temp_data['cs:parent'] = self.previous_parent
 
 
 class CSClassObject(CSObject):
@@ -749,21 +788,10 @@ class CSClassObject(CSObject):
     parser = DefinitionParser(sig)
     clike = parser.parse_classlike()
 
-    # Work out our namespace by combining sources
-    namespace = self.options.get('namespace', 
-      self.env.temp_data.get('cs:namespace'))
-    if namespace:
-      # Merge the classlike type namespace with this namespace to give a fqn
-      given_namespace = DefinitionParser(namespace)._parse_namespace_name()
-      given_fqn = given_namespace.fqn()
-      clike_fqn = clike._full_name.fqn()
-      if not clike_fqn.startswith(given_fqn):
-        clike._full_name.deepest_namespace()._namespace = given_namespace
-      # Re-assign the resolved namespace
-      namespace = clike._full_name.namespace_fqn()
-
-    # parentname = self.env.temp_data.get('cs:parent')
-    print "Class {} within namespace: {}".format(clike._name, namespace)
+    # Use the current namespace to build a fully qualified name
+    curr_namespace = self.resolve_current_namespace()
+    clike._full_name.merge_onto(curr_namespace)
+    # print "Fully Qualified Class name: " + clike._full_name.fqn()
 
     visibility = clike.visibility
     modifiers = clike._modifiers
@@ -783,7 +811,7 @@ class CSClassObject(CSObject):
     signode += addnodes.desc_annotation(clike_category, clike_category)
 
     # Handle the name
-    self.attach_name(signode, namespace, clike._name)
+    self.attach_name(signode, clike._full_name)
     
     if clike._type_parameters:
       signode += addnodes.desc_annotation('<', '<')
@@ -818,7 +846,7 @@ class CSMemberObject(CSObject):
     info = parser.parse_member()
 
     
-    namespace = self.resolve_actual_namespace()
+    namespace = self.resolve_current_namespace()
     if namespace:
       namespace_type = DefinitionParser(namespace)._parse_namespace_name()
 
@@ -827,7 +855,7 @@ class CSMemberObject(CSObject):
         info._full_name.deepest_namespace()._namespace = namespace_type
         namespace = info._full_name.namespace_fqn()
 
-    print "Member {} within namespace: {}".format(info._name, namespace)
+    # print "Member {} within namespace: {}".format(info._name, namespace)
     # print "   In Class: {}".format(parentname)
 
     if type(info) is MethodInfo:
@@ -848,10 +876,16 @@ class CSMemberObject(CSObject):
     if info._type:
       self.attach_type(signode, info._type)
       signode += nodes.Text(u' ')
-    signode += addnodes.desc_name(str(info._name), str(info._name))
+    # signode += addnodes.desc_name(str(info._name), str(info._name))
 
     # self.attach_name(signode, namespace, info._name)
-    
+    namespace = self.resolve_current_namespace()
+
+    # nstype = TypeInfo.FromNamespace(namespace)
+    # print namespace
+    # print nstype.flatten_namespace()
+    self.attach_name(signode, info._full_name)
+
     paramlist = addnodes.desc_parameterlist()
     for arg in info._arguments:
       param = addnodes.desc_parameter('', '', noemph=True)
@@ -880,8 +914,16 @@ class CSMemberObject(CSObject):
     self.attach_modifiers(signode, info._modifiers)
     self.attach_type(signode, info._type)
     signode += nodes.Text(u' ')
-    signode += addnodes.desc_name(str(info._name), str(info._name))
+    # signode += addnodes.desc_name(str(info._name), str(info._name))
     
+    namespace = self.resolve_current_namespace()
+
+    # nstype = TypeInfo.FromNamespace(namespace)
+    # print namespace
+    # print nstype.flatten_namespace()
+    self.attach_name(signode, info._full_name)
+
+
     signode += nodes.Text(u'{ ')
     if info._getter:
       if info._getter._visibility:
