@@ -26,20 +26,15 @@ Contents:
 ..  cs:class:: protected class ViewModel<T, Q> : IViewModel, IEditableObject, INotifyDataErrorInfo where T : class, IModelClass, new()
     :namespace: StylePack.Another
     
-    The parent ViewModel
+    The parent ViewModel.
+    
+    ..  cs:method:: public void SetError(bool hasError, string description = null, [CallerMemberName] string property = null)
 
-..  cs:method:: public void SetError(bool hasError, string description = null, [CallerMemberName] string property = null)
+      A member method on the class
 
-  A member method on the class
+    .. cs:property:: public bool HasErrors { get; private set; }
 
-.. cs:property:: public bool HasErrors { get; private set; }
-
-  A property on the class
-
-
-.. cs:member:: public bool HasErrors { get; }
-
-.. cs:member:: public void SetError(bool hasError, string description = null, [CallerMemberName] string property = null)
+      A property on the class
 
 .. cs:member:: public SetErrorConstructor(bool hasError, string description = null, [CallerMemberName] string property = null)
 

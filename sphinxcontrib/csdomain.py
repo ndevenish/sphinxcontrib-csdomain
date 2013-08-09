@@ -749,6 +749,7 @@ class CSClassObject(CSObject):
       namespace = clike._full_name.namespace_fqn()
 
     # parentname = self.env.temp_data.get('cs:parent')
+    print "Class {} within namespace: {}".format(clike._name, namespace)
 
     visibility = clike.visibility
     modifiers = clike._modifiers
@@ -811,6 +812,9 @@ class CSMemberObject(CSObject):
       # Validate these are compatible
       if parentname:
         if not parentname.fqn().startswith(namespace_type.fqn()):
+          self.state_machine.reporter.warning(
+            "Namespace Mismatch: Child has namespace {}, does not match parent {}"
+            .format(namespace_type.fqn(), parentname.fqn()))
           raise ValueError("Namespace Mismatch")
         namespace_type = parentname
 
