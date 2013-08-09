@@ -24,6 +24,7 @@ class MemberInfo(object):
   _name = None
   _type = None
   _full_name = None
+  _member_category = None
 
   @property
   def visibility(self):
@@ -35,12 +36,14 @@ class MemberInfo(object):
 
 
 class MethodInfo(MemberInfo):
+  _member_category = "method"
   _arguments = None
   valid_modifiers = ('new', 'public', 'protected', 'internal', 'private',
                    'static', 'virtual', 'sealed', 'override', 'abstract',
                    'extern')
 
 class PropertyInfo(MemberInfo):
+  _member_category = "property"
   _setter = None
   _getter = None
   valid_modifiers = ('new', 'public', 'protected', 'internal', 'private',
@@ -136,7 +139,7 @@ class TypeInfo(object):
       namespace = TypeInfo.FromNamespace(namespace)
     if not self.fqn().startswith(namespace.fqn()):
       self.deepest_namespace()._namespace = namespace
-  
+
   def __str__(self):
 
     return self.fqn()
@@ -461,7 +464,7 @@ class DefinitionParser(object):
     method._modifiers = self._parse_constructor_modifiers()
     method._full_name = self._parse_type_name()
     method._name = method._full_name._name
-
+    method._member_category = "constructor"
     self.swallow_character_and_ws('(')
     method._arguments = self._parse_formal_argument_list()
     self.swallow_character_and_ws(')')
@@ -738,10 +741,30 @@ class CSObject(ObjectDescription):
       namespace = parentname.fqn()
     return namespace
 
+  def add_target_and_index(self, name, sig, signode):
+    idname = name._full_name.fqn()
+
+    if idname not in self.state.document.ids:
+      signode['names'].append(idname)
+      signode['ids'].append(idname)
+      signode['first'] = (not self.names)
+      self.state.document.note_explicit_target(signode)
+
+      self.env.domaindata['cs']['objects'].setdefault(idname, 
+        (self.env.docname, self.objtype, name))
+
+      indextext = self.get_index_text(name)
+      if indextext:
+          self.indexnode['entries'].append(('single', indextext, idname, ''))
+
+  def get_index_text(self, name):
+      return None
 
   def attach_name(self, signode, full_name):
     """Attaches a fully qualified TypeInfo name to the node tree"""
     # Get the previous namespace
+    # import pdb
+    # pdb.set_trace()
     prev_namespace = self.resolve_previous_namespace()
     if prev_namespace:
       curr = full_name.fqn()
@@ -784,9 +807,9 @@ class CSObject(ObjectDescription):
     self.parentname_set = False
     lastname = self.names and self.names[-1]
     if lastname and not self.env.temp_data.get('cs:parent'):
-        assert isinstance(lastname, TypeInfo)
+        assert isinstance(lastname._full_name, TypeInfo)
         self.previous_parent = self.env.temp_data.get('cs:parent')
-        self.env.temp_data['cs:parent'] = lastname
+        self.env.temp_data['cs:parent'] = lastname._full_name
         self.parentname_set = True
     else:
         self.parentname_set = False
@@ -797,6 +820,10 @@ class CSObject(ObjectDescription):
 
 
 class CSClassObject(CSObject):
+
+  def get_index_text(self, name):
+    return _('{} (C# {})'.format(name._name, name._classlike_category))
+
   def handle_signature(self, sig, signode):
     parser = DefinitionParser(sig)
     clike = parser.parse_classlike()
@@ -850,15 +877,18 @@ class CSClassObject(CSObject):
         signode += addnodes.desc_annotation(', ', ', ')
       signode.pop()
 
-    return clike._full_name
+    return clike
 
 class CSMemberObject(CSObject):
+
+  def get_index_text(self, name):
+    membertype = name._member_category
+    return _('{} (C# {})'.format(name._name, membertype))
 
   def handle_signature(self, sig, signode):
     parser = DefinitionParser(sig)
     info = parser.parse_member()
 
-    
     namespace = self.resolve_current_namespace()
     if namespace:
       namespace_type = DefinitionParser(namespace)._parse_namespace_name()
@@ -877,7 +907,7 @@ class CSMemberObject(CSObject):
       self.attach_property(signode, info)
     else:
       raise ValueError()
-    return info._full_name
+    return info
 
   def attach_method(self, signode, info):
 
