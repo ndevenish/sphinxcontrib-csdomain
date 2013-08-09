@@ -136,6 +136,9 @@ class TypeInfo(object):
     return [self._full]
 
   def merge_onto(self, namespace):
+    """Merges the existing typeinfo onto another namespace."""
+    if not namespace:
+      return
     if not type(namespace) == TypeInfo:
       namespace = TypeInfo.FromNamespace(namespace)
     if not self.fqn().startswith(namespace.fqn()):
@@ -1113,7 +1116,7 @@ class CSharpDomain(Domain):
 
     # print "Found match: " + str(match)
     return make_refnode(builder, fromdocname, 
-      match[0],match[2].fqn(), contnode, target)
+      match[0],match[2]._full_name.fqn(), contnode, target)
 
   def get_objects(self):
     for refname, (docname, typen, fullname) in self.data['objects'].iteritems():
