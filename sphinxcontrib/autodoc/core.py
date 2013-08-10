@@ -54,6 +54,19 @@ class CoreParser(object):
       return True
     return False
 
+  def skip_to_char(self, char):
+    assert len(char) == 1
+    self.match(re.compile('[^{}]*'.format(char)))
+    value = self.matched_text
+    self.skip_ws()
+    return value
+
+  def skip_to_any_char(self, chars):
+    self.match(re.compile('[^{}]*'.format(chars)))
+    value = self.matched_text
+    self.skip_ws()
+    return value
+
   def skip_to_eol(self):
     self.match(_not_newline_re)
     value = self.matched_text

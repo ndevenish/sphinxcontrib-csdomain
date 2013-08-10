@@ -3,6 +3,7 @@
 import unittest
 from .parser import FileParser, opensafe
 from .lexical import Comment
+from .core import CoreParser
 
 SAMPLE = "/Users/xgkkp/dockets/app/Core/Utils/DBPreflight.cs"
 
@@ -36,3 +37,7 @@ class TestAutodoc(unittest.TestCase):
   def test_parse_type(self):
     p = FileParser('string')
     p._parse_type()
+
+  def test_skip_to(self):
+    p = CoreParser("some text with a d) in the")
+    self.assertEqual(p.skip_to_char(')'), "some text with a d")

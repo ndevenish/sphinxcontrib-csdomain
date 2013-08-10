@@ -24,8 +24,10 @@ class NamedDefinition(object):
   _strip = True
   form = ""
 
-  def __init__(self, name):
+  def __init__(self, name, form = None):
     self.definitionname = name
+    if form:
+      self.form = form
 
   def __str__(self):
     return self.form
@@ -38,7 +40,6 @@ class Comment(NamedDefinition):
   def __init__(self, comment):
     self.parts.append(comment)
     self.form = "// " + comment
-
 
 class SeparatedNameList(NamedDefinition):
   def __init__(self, name, separator = " "):
@@ -54,6 +55,19 @@ class CommaNameList(SeparatedNameList):
 
 class TypeName(NamedDefinition):
   arguments = []
+
+class FormalParameter(NamedDefinition):
+  pass
+
+class TypeParameterList(SeparatedNameList):
+  def __init__(self):
+    super(TypeParameterList, self).__init__("type-parameter-list", ", ")
+
+  def __str__(self):
+    return "<" + self.separator.join(self.parts) + ">"
+
+class Statement(NamedDefinition):
+  pass
 
 class Member(NamedDefinition):
   name = None

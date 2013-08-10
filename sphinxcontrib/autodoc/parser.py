@@ -8,7 +8,8 @@ import os
 from ..parser import DefinitionParser, DefinitionError
 from ..types import ClassInfo
 from .core import CoreParser
-from .lexical import LexicalParser, TypeName, Member
+import lexical
+from .lexical import LexicalParser, TypeName, Member, FormalParameter, Statement
 
 def opensafe(filename, mode = 'r'):
   bytes = min(32, os.path.getsize(filename))
@@ -90,6 +91,12 @@ class FileParser(object):
       else:
         raise DefinitionError("Unexpected end-of-string; Expected '{}'".format(word))
 
+  def swallow_one_of(self, words):
+    for word in words:
+      if self.core.skip_word_and_ws(word):
+        return word
+    raise DefinitionError("Could not read any of " + ", ".join(words))
+
   def __init__(self, definition):
     self.core = CoreParser(definition)
     self.lex = LexicalParser(self.core)
@@ -146,7 +153,7 @@ class FileParser(object):
 
       # ident = self.lex.parse_identifier()
       if not ident:
-        raise DefinitionError()
+        raise DefinitionError("no identity")
       args = self.opt(self._parse_type_argument_list)
       
       t = TypeName("namespace-or-type-name")
@@ -158,6 +165,7 @@ class FileParser(object):
       return t
     
     def _second():
+      raise DefinitionError("Disabled")
       # namespace-or-type-name . identifier 
       nmsp = self._parse_namespace_or_type_name()
       self.swallow_with_ws('.')
@@ -192,6 +200,13 @@ class FileParser(object):
     nullable = self.core.skip_with_ws("?")
     return (tname, nullable)
 
+  def _parse_nonarray_type(self):
+    tname = self.first_of((self._parse_value_type, self._parse_class_type, 
+      self._parse_interface_type, self._parse_delegate_type, 
+      self._parse_type_parameter))
+    nullable = self.core.skip_with_ws("?")
+    return (tname, nullable)    
+
   def _parse_value_type(self):
     def _simple_type():
       simple_types = ("sbyte", "byte", "short", "ushort", "int", "uint", "long", "ulong", "char", "decimal", "bool")
@@ -218,7 +233,7 @@ class FileParser(object):
     cn = self.opt(self._parse_type_name)
     if cn:
       return cn
-    kw = lex.parse_identifier_or_keyword()
+    kw = self.lex.parse_identifier_or_keyword()
     if kw in ("object", "dynamic", "string"):
       return kw
     raise DefinitionError("Not a class type")
@@ -230,7 +245,13 @@ class FileParser(object):
     return self._parse_type_name()
 
   def _parse_array_type(self):
-    raise NotImplemented()
+    nat = self._parse_nonarray_type()
+    if not nat:
+      raise DefinitionError("Not an array type")
+    self.swallow_with_ws('[')
+    while self.core.skip_with_ws(','):
+      pass
+    self.swallow_with_ws(']')
 
   def _parse_type_argument_list(self):
     #type-argument-list: < type... >
@@ -243,6 +264,82 @@ class FileParser(object):
 
   ## B.2.4 Expressions ################################
   ## B.2.5 Statements #################################
+
+  def _parse_statement(self):
+    print "Trying to parse statement: " + self.cur_line()
+    statement = self.first_of([
+      self._parse_labeled_statement,
+      self._parse_declaration_statement,
+      self._parse_embedded_statement
+      ])
+    if statement:
+      return statement
+    raise DefinitionError("Could not read statement of any form")
+
+  def _parse_embedded_statement(self):
+    return self.first_of([
+      self._parse_block,
+      self._parse_empty_statement,
+      self._parse_fudged_statement,
+      ])
+
+  def _parse_block(self):
+    self.swallow_with_ws('{')
+    statements = self._parse_any(self._parse_statement)
+    self.swallow_with_ws('}')
+    return statements
+  
+  def _parse_empty_statement(self):
+    self.swallow_with_ws(';')
+    return Statement('empty-statement', ';')
+
+  def _parse_labeled_statement(self):
+    ident = self.lex.parse_identifier()
+    if not ident:
+      raise DefinitionError("Not a labelled statement")
+    self.swallow_with_ws(':')
+    statement = self._parse_statement()
+    form = "{} : {}".format(ident, statement)
+    return Statement('labeled-statement', form)
+
+  def _parse_declaration_statement(self):
+    # local-variable-declaration ; local-constant-declaration ;
+    const = self.core.skip_word_and_ws('const')
+    st = self._parse_local_variable_declaration()
+    if const:
+      st.definitionname = "local-constant-declaration"
+      st.form = "const " + st.form
+    return st
+
+  def _parse_local_variable_declaration(self):
+    # Type: type, or var
+    t = self._parse_type()
+    if not t:
+      self.swallow_word_and_ws('var')
+      t = 'var'
+    decl = self._parse_any(self._parse_local_variable_declarator, ',')
+    if not decl:
+      raise DefinitionError("Not a valid variable declaration")
+    self.swallow_character_and_ws(';')
+    form = "{} {}".format(t, decl)
+    return Statement('local-variable-declaration', form)
+
+  def _parse_local_variable_declarator(self):
+    i = self.lex.parse_identifier()
+    if not i:
+      raise DefinitionError('not a local variable declarator')
+    if self.core.skip_with_ws('='):
+      exp = self._parse_expression()
+      self.warn("Not properly parsing expressions")
+    return i
+
+  def _parse_fudged_statement(self):
+    "Do a general 'statement-fudge'"
+    # Try skipping to the next ;
+    contents = self.core.skip_to_any_char(';}')
+    self.swallow_with_ws(';')
+    print "SKipped: " + contents
+    return contents
 
   ## B.2.6 Namespaces #################################
 
@@ -344,6 +441,7 @@ class FileParser(object):
       # print "Parsed comment: " + comment.contents
       return comment
 
+    print "Namespace member " + self.cur_line()
     return self.first_of((
       self._parse_namespace_declaration,
       self._parse_type_declaration
@@ -352,17 +450,19 @@ class FileParser(object):
     raise DefinitionError("Could not parse namespace or type definition")
 
   def _parse_type_declaration(self):
+    return self.first_of([
+      self._parse_class_declaration
+    ])
     # class-declaration
     # struct-declaration
     # interface-declaration
     # enum-declaration
     # delegate-declaration
-    pass
 
   def _parse_qualified_alias_member(self):
     #     qualified-alias-member:
     # identifier :: identifier type-argument-listopt
-    id1 = self._parse_identifier()
+    id1 = self.lex.parse_identifier()
     self.swallow_word_and_ws('::')
     id2 = self._parse_identifier()
     args = self._parse_type_argument_list()
@@ -383,17 +483,19 @@ class FileParser(object):
     clike.attributes = self._parse_any_attributes()
     clike.modifiers = self._parse_any_class_modifiers()
     self.core.skip_with_ws('partial')
-    self.swallow_with_ws('class')
+
+    # self.swallow_with_ws('class')
+    class_type = self.swallow_one_of(['class', 'struct'])
+    print "Class type: " + class_type
     clike.name = self.lex.parse_identifier()
 
     type_params = self.opt(self._parse_type_parameter_list)
 
     if self.core.skip_with_ws(':'):
-      bases = self._parse_any(self._parse_type_name, ',')
-      clike.bases = [x for x in bases]
+      clike.bases = self._parse_any(self._parse_type_name, ',')
 
     self.core.skip_ws()
-    
+
     constraints = self._parse_any_type_parameter_constraints_clauses()
     
     return clike
@@ -401,17 +503,16 @@ class FileParser(object):
   def _parse_class_declaration(self):
 
     clike = self._parse_class_declaration_header()
-
     self.core.skip_ws()
-    import pdb
-    pdb.set_trace()
+
 
     # Class body
     print "Line: " + self.core.definition[self.core.pos:self.core.pos+30]
     self.swallow_with_ws('{')
-    members = self._parse_any_class_member_declarations()
+    clike.members = self._parse_any_class_member_declarations()
     self.swallow_with_ws('}')
     self.core.skip_with_ws(";")
+    return clike
 
   def _parse_type_parameter_list(self):
     self.swallow_with_ws('<')
@@ -419,6 +520,9 @@ class FileParser(object):
     if not params:
       raise DefinitionError("Incorrect type parameter list")
     self.swallow_with_ws('>')
+    pl = lexical.TypeParameterList()
+    pl.parts = params
+    return pl
 
   def _parse_type_parameter(self):
     attr = self._parse_any_attributes()
@@ -460,9 +564,16 @@ class FileParser(object):
 
   def _parse_class_member_declaration(self):
     # constant-declaration field-declaration method-declaration property-declaration event-declaration indexer-declaration operator-declaration constructor-declaration destructor-declaration static-constructor-declaration type-declaration
-    return self.first_of((
-      self._parse_constant_declaration
-    ))
+    return self.first_of([
+      self.lex.parse_comment,
+      self._parse_constant_declaration,
+      self._parse_field_declaration,
+      self._parse_method_declaration,
+      #property,
+      #event,
+      #indexer,
+      self._parse_constructor_declaration,
+    ])
 
   def _parse_constant_declaration(self):
     m = Member("constant-declaration")
@@ -478,7 +589,116 @@ class FileParser(object):
       raise DefinitionError()
     return m
 
+  def _parse_field_declaration(self):
+    print "Trying to parse field: " + self.cur_line()
+    m = Member("field-declaration")
+    m.attributes = self._parse_any_attributes()
+    valid_m = ("new", "public", "protected", "internal", "private", 
+                "static", "readonly", "volatile")
+    m.modifiers = self._parse_any_modifiers(valid_m)
+    m.type = self._parse_type()
+    decs = self._parse_variable_declarators()
+    self.swallow_with_ws(';')
+    m.name = decs
+    return m
 
+  def _parse_variable_declarators(self):
+    decs = self._parse_any(self._parse_variable_declarator)
+    if not decs:
+      raise DefinitionError("Didn't get any variable declarators");
+    return decs
+
+  def _parse_variable_declarator(self):
+    name = self.lex.parse_identifier()
+    if not name:
+      raise DefinitionError("no variable declarator")
+    if self.core.skip_with_ws('='):
+      # Expression, or array initialiser.
+      value = self._parse_expression()
+    return name
+
+  def _parse_method_declaration(self):
+    print "Trying to parse member: " + self.cur_line()
+    m = self._parse_method_header()
+
+    m.body = self.opt(self._parse_block)
+    if not m.body:
+      self.swallow_with_ws(';')
+
+    return m
+
+  def _parse_method_header(self):
+    m = Member('method-declaration')
+    m.attributes = self._parse_any_attributes()
+    m.modifiers = self._parse_any_method_modifiers()
+    m.partial = self.core.skip_with_ws('partial')
+    m.type = self._parse_return_type()
+    m.name = self._parse_type_name()
+    type_params = self.opt(self._parse_type_parameter_list)
+    self.swallow_character_and_ws('(')
+
+    m.parameters = self.opt(self._parse_formal_parameter_list)
+    print "Parameters: " + m.parameters
+    
+    self.swallow_character_and_ws(')')
+    constraints = self._parse_any_type_parameter_constraints_clauses()
+
+    return m
+
+  def _parse_return_type(self):
+    rt = self._parse_type()
+    if rt:
+      return rt
+    if self.core.skip_word_and_ws('void'):
+      return void
+
+  def _parse_formal_parameter_list(self):
+    fixed = self._parse_any(self._parse_fixed_parameter, ',')
+    return fixed
+
+  def _parse_fixed_parameter(self):
+    # attributesopt parameter-modifieropt type identifier default-argumentopt
+    p = FormalParameter('fixed-parameter')
+    p.attributes = self._parse_any_attributes()
+    p.modifiers = self.opt(self.swallow_one_of(['ref', 'out', 'this']))
+    p.type = self._parse_type()
+    p.name = self.lex.parse_identifier()
+
+    p.form = "{} {} {} {}".format(p.attributes, p.modifiers, p.type, p.name)
+    if self.core.skip_with_ws('='):
+      p.default = self._parse_expression()
+      p.form += " = " + p.default
+    p.form = p.form.strip()
+
+    return p  
+
+  def _parse_constructor_declaration(self):
+    print "Trying to parse constructor: " + self.cur_line()
+    # import pdb
+    # pdb.set_trace()
+    # constructor-declarator constructor-body
+    m = Member('constructor-declaration')
+    m.attributes = self._parse_any_attributes()
+    m.modifiers = self._parse_any_modifiers(['public', 'protected', 'internal', 'private', 'extern'])
+    m.name = self.lex.parse_identifier()
+    self.swallow_with_ws('(')
+    m.parameters = self.opt(self._parse_formal_parameter_list)
+    self.swallow_with_ws(')')
+    m.initialiser = self.opt(self._parse_constructor_initialiser)
+
+    m.body = self.opt(self._parse_block)
+    if not m.body:
+      self.swallow_with_ws(';')
+    return m
+
+  def _parse_constructor_initialiser(self):
+    #: base ( argument-listopt ) : this ( argument-listopt )
+    self.swallow_with_ws(':')
+    to = self.swallow_one_of(['base', 'this'])
+    self.swallow_with_ws('(')
+    self.core.skip_to_char(')')
+    self.swallow_with_ws(')')
+    return "[initialiser]"
 
   ## Uncategorised ####################################
 
@@ -504,82 +724,9 @@ class FileParser(object):
 
     return token
 
-  def _parse_statement(self):
-    state = self.savepos()
-    try:
-      statement = self._parse_labeled_statement()
-    except DefinitionError:
-      self.restorepos(state)
-    try:
-      statement = self._parse_declaration_statement()
-      if not statement:
-        raise DefinitionError("Invalid statement")
-    except DefinitionError:
-      self.restorepos(state)
-    try:
-      statement = self._parse_embedded_statement()
-    except DefinitionError:
-      self.restorepos(state)
-
-    raise DefinitionError("Could not read statement of any form")
-
-
-  def _parse_labeled_statement(self):
-    ident = self._parse_identifier()
-    if not ident:
-      raise DefinitionError("Not a labelled statement")
-    self.swallow_character_and_ws(':')
-    statement = self._parse_statement()
-    return StatementInfo('labelled', (ident, statement))
-
-  def _parse_declaration_statement(self):
-    # local-variable-declaration ; local-constant-declaration ;
-    const = self.skip_word_and_ws('const')
-    st = self._parse_local_variable_declaration()
-    if const:
-      st.statement_type = "constant-variable"
-    return st
-
-  def _parse_local_variable_declaration(self):
-    t = self._parse_type(self)
-    if not t:
-      return None
-    # Comma-separated list of identifier, identifier + something
-    identifiers = self.parse_comma_list([';'], self._parse_local_variable_declarator)
-    if not identifiers:
-      raise DefinitionError("Not a valid variable declaration")
-    self.swallow_character_and_ws(';')
-    return StatementInfo('local-variable', (t, identifiers))
-
-  def _parse_local_variable_declarator(self):
-    i = self._parse_identifier()
-    if self.skip_character_and_ws('='):
-      exp = self._parse_expression()
-      self.warn("Not properly parsing expressions")
-    return i
-
-
   def _parse_expression(self):
     # Complicated... skip for now
     raise Exception("Not processing expressions")
-
-  def _parse_embedded_statement(self):
-    state = (self.pos, self.last_match)
-    # Blocks
-    if self.skip_character_and_ws('{'):
-      statements = []
-      # Block start
-      while not self.skip_character_and_ws('}'):
-        statements.append(self._parse_statement())
-      return StatementInfo('block', statements)
-    if self.skip_character_and_ws(';'):
-      return StatementInfo('empty', None)
-    # Try expression-statement
-    try:
-      expr = self._parse_statement_expression()
-      self.swallow_character_and_ws(';')
-    except DefinitionError:
-      (self.pos, self.last_match) = state
 
   def _parse_any_attributes(self):
     return self._parse_any(self._parse_attribute_section)
