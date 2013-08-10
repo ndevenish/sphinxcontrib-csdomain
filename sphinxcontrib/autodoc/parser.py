@@ -167,7 +167,13 @@ class FileParser(DefinitionParser):
     return self._parse_many(self._parse_namespace_member_declaration)
 
   def _parse_namespace_member_declaration(self):
+    # print "Parsing NS-dec: " + self.cur_line()
     # namespace-declaration, or type-declaration
+    comment = self._parse_comment()
+    if comment:
+      # print "Parsed comment: " + comment.contents
+      return comment
+
     state = self.savepos()
     try:
       return self._parse_namespace_declaration()
@@ -247,17 +253,8 @@ class FileParser(DefinitionParser):
     return value
 
   def _parse_comment(self):
-    if self.definition[self.pos:self.pos+1] == "//":
-      self.pos += 2
-      
-      match = regex.match(self.definition, self.pos)
-    if match is not None:
-      self._previous_state = (self.pos, self.last_match)
-      self.pos = match.end()
-      self.last_match = match
-      return True
-
-      return CommentInfo(self.skip_to_eol())
+    if self.skip_character('//'):
+      return CommentInfo("//" + self.skip_to_eol())
     return None
   
   def _parser_input_element(self):
