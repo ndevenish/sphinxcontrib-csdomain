@@ -303,26 +303,6 @@ class DefinitionParser(object):
       self.skip_character_and_ws(',')
     return results
 
-  def parse_method(self):
-    method = self._parse_method_header()
-    
-    print method
-    print "Parsing Method:"
-    print "  Modifiers: {}".format(", ".join(method._modifiers))
-    print "  Return:    {}".format(method._type)
-    print "  Name:      {}".format(method._name)
-    print "  Arguments: {}".format(len(method._arguments))
-    for arg in method._arguments:
-      argspec = ""
-      if arg['attributes']:
-        argspec += full_attribute_name(arg['attributes']) + " "
-      if arg['modifiers']:
-        argspec += " ".join(arg['modifiers']) + " "
-      # argspec += arg['type'] + ' ' + arg['name']
-      print "    {}{} {}".format(argspec, arg['type'], arg['name'])
-
-    return method
-
   def parse_classlike(self):
     state = (self.pos, self.last_match)
     try:
@@ -789,10 +769,14 @@ class CSObject(ObjectDescription):
     prev_namespace = self.resolve_previous_namespace()
     if prev_namespace:
       curr = full_name.fqn()
-      if full_name.fqn().startswith(prev_namespace):
+      if full_name.fqn().startswith(prev_namespace) and not full_name.fqn() == prev_namespace:
         # print "Partially filled by parent: "
+        # print "Previous namespace: '{}'".format(prev_namespace)
         # print "  Cutting from " + full_name.fqn()
-        new_fqn = full_name.fqn()[len(prev_namespace)+1:]
+        new_fqn = full_name.fqn()[len(prev_namespace):]
+        if new_fqn[0] == ".":
+          new_fqn = new_fqn[1:]
+        # print "New fqn is: " + new_fqn
         full_name = TypeInfo.FromNamespace(new_fqn)
         # print "            to " + full_name.fqn()
 
