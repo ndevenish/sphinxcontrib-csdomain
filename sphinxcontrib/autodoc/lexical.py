@@ -28,10 +28,10 @@ class NamedDefinition(object):
     self.name = name
 
   def __str__(self):
-    return form
+    return self.form
 
   def __repr__(self):
-    return "<{}: {}>".format(name, str(self))
+    return "<{}: {}>".format(self.name, str(self))
 
 class Comment(NamedDefinition):
   name = "comment"
@@ -51,6 +51,9 @@ class SeparatedNameList(NamedDefinition):
 class CommaNameList(SeparatedNameList):
   def __init__(self, name):
     super(SeparatedNameList, self).__init__(name, ", ")
+
+class TypeName(NamedDefinition):
+  arguments = []
 
 class LexicalParser(object):
   core = None

@@ -8,7 +8,7 @@ import os
 from ..parser import DefinitionParser, DefinitionError
 from ..types import ClassInfo
 from .core import CoreParser
-from .lexical import LexicalParser
+from .lexical import LexicalParser, TypeName
 
 def opensafe(filename, mode = 'r'):
   bytes = min(32, os.path.getsize(filename))
@@ -141,13 +141,21 @@ class FileParser(object):
   def _parse_namespace_or_type_name(self):
     def _first():
       # identifier type-argument-listopt
-      ident = ".".join(self._parse_any(self.lex.parse_identifier, '.'))
+      names = self._parse_any(self.lex.parse_identifier, '.')
+      ident = ".".join(names)
 
       # ident = self.lex.parse_identifier()
       if not ident:
         raise DefinitionError()
       args = self.opt(self._parse_type_argument_list)
-      return (ident, args)
+      
+      t = TypeName("namespace-or-type-name")
+      t.parts.append(ident)
+      t.parts.append(args)
+      t.form = ident
+      if args:
+        t.form += "<{}>".format(", ".join(args))
+      return t
     
     def _second():
       # namespace-or-type-name . identifier 
@@ -156,11 +164,23 @@ class FileParser(object):
       ident = self.lex._parse_identifier()
       if not nmsp or not ident:
         raise DefinitionError()
+      
+      t = TypeName("namespace-or-type-name")
+      t.parts.append(nmsp)
+      t.parts.append(ident)
+      t.form = nmsp + "." + ident
+      return t
 
     def _third():
       # type-argument-listopt qualified-alias-member
       args = self.opt(self._parse_type_argument_list)
       memb = self._parse_qualified_alias_member()
+      t = TypeName("namespace-or-type-name")
+      t.form = ""
+      if args:
+        t.form += "<{}>".format(", ".join(args))
+      t.form += " " + memb
+      return t
 
     return self.first_of((_first, _second, _third))
 
@@ -218,14 +238,13 @@ class FileParser(object):
     args = self._parse_any(_self._parse_type, ",")
     if not args:
       raise DefinitionError("No type argument params")
-    self.swallow_character_and_ws('>')
-
-  def _parse_type_parameter(self):
-    return self.lex._parse_identifier()
+    self.swallow_with_ws('>')
 
 
+  ## B.2.4 Expressions ################################
+  ## B.2.5 Statements #################################
 
-
+  ## B.2.6 Namespaces #################################
 
   def _parse_compilation_unit(self):
     # None-or more "extern alias identifier ;"
@@ -242,13 +261,32 @@ class FileParser(object):
     names = self._parse_any_namespace_member_declarations()
     print names
 
-# compilation-unit:
-# extern-alias-directivesopt
-# using-directivesopt global-attributesopt
-# namespace-member-declarationsopt
+  def _parse_namespace_declaration(self):
+    self.swallow_word_and_ws('namespace')
+    identifier = self._parse_qualified_identifier()
 
-  def _parse_any_using_directives(self):
-    return self._parse_any(self._parse_using_directive)
+    space = NamespaceInfo(identifier)
+
+    # Parse namespace body
+    # { extern-alias-directivesopt using-directivesopt 
+    # namespace-member-declarationsopt }
+    self.swallow_with_ws("{")
+    space.extern_alias = self._parse_any_extern_alias_directives()
+    space.using = self._parse_any_using_directives()
+    print "Parsing internals of namespace: " + space.name
+    space.members = self._parse_any_namespace_member_declarations()
+    print "   Parsed {} members".format(len(space.members))
+    self.swallow_with_ws("}")
+
+    self.core.skip_with_ws(";")
+
+    return space
+
+  def _parse_qualified_identifier(self):
+    items = self._parse_any(self.lex.parse_identifier, ".")
+    if not items:
+      raise DefinitionError("Could not read qualified identifier")
+    return ".".join(items)
 
   def _parse_any_extern_alias_directives(self):
     return self._parse_any(self._parse_extern_alias_directive)
@@ -258,6 +296,9 @@ class FileParser(object):
     self.swallow_word_and_ws('alias')
     ident = self._parse_identifier()
     self.swallow_character_and_ws(';')
+
+  def _parse_any_using_directives(self):
+    return self._parse_any(self._parse_using_directive)
 
   def _parse_using_directive(self):
     """Attempt to parse both types of using directive"""
@@ -292,9 +333,6 @@ class FileParser(object):
     self.restorepos(state)
     return None
 
-  def _parse_global_attribute_section(self):
-    return self._parse_attribute_section(['assembly', 'module'])
-  
   def _parse_any_namespace_member_declarations(self):
     return self._parse_any(self._parse_namespace_member_declaration)
 
@@ -306,60 +344,39 @@ class FileParser(object):
       # print "Parsed comment: " + comment.contents
       return comment
 
-    state = self.savepos()
-    try:
-      return self._parse_namespace_declaration()
-    except DefinitionError:
-      self.restorepos(state)
-    try:
-      return self._parse_type_declaration()
-    except DefinitionError:
-      self.restorepos(state)
+    return self.first_of((
+      self._parse_namespace_declaration,
+      self._parse_type_declaration
+      ))
 
     raise DefinitionError("Could not parse namespace or type definition")
 
-
-  def _parse_namespace_declaration(self):
-    self.swallow_word_and_ws('namespace')
-    identifier = self._parse_qualified_identifier()
-
-    space = NamespaceInfo(identifier)
-
-    # Parse namespace body
-    # { extern-alias-directivesopt using-directivesopt 
-    # namespace-member-declarationsopt }
-    self.swallow_with_ws("{")
-    space.extern_alias = self._parse_any_extern_alias_directives()
-    space.using = self._parse_any_using_directives()
-    print "Parsing internals of namespace: " + space.name
-    space.members = self._parse_any_namespace_member_declarations()
-    print "   Parsed {} members".format(len(space.members))
-    self.swallow_with_ws("}")
-
-    self.core.skip_with_ws(";")
-
-    return space
-
   def _parse_type_declaration(self):
-    # class-declaration struct-declaration interface-declaration enum-declaration delegate-declaration
+    # class-declaration
+    # struct-declaration
+    # interface-declaration
+    # enum-declaration
+    # delegate-declaration
     pass
+
+
+  ## B.2.7 Classes ####################################
 
   def _parse_class_declaration(self):
     # Partly handled by prior, but be strict here
     clike = ClassInfo(None)
-    # import pdb
-    # pdb.set_trace()
+    
     clike.attributes = self._parse_any_attributes()
     clike.modifiers = self._parse_any_class_modifiers()
     self.core.skip_with_ws('partial')
     self.swallow_with_ws('class')
     clike.name = self.lex.parse_identifier()
 
-    # type_params = self._parse_type_parameter_list()
+    type_params = self.opt(self._parse_type_parameter_list)
 
     if self.core.skip_with_ws(':'):
-      bases = self._parse_many(self._parse_type_name, ',')
-      clike.bases = [x.fqn() for x in bases]
+      bases = self._parse_any(self._parse_type_name, ',')
+      clike.bases = [x for x in bases]
 
     self.core.skip_ws()
     
@@ -385,20 +402,33 @@ class FileParser(object):
     # self.skip_ws()
     # clike._type_parameter_constraints = self._parse_type_parameter_constraints_clauses()
 
+  def _parse_type_parameter_list(self):
+    self.swallow_with_ws('<')
+    params = self._parse_any(self._parse_type_parameter, ",")
+    if not params:
+      raise DefinitionError("Incorrect type parameter list")
+    self.swallow_with_ws('>')
+
+  def _parse_type_parameter(self):
+    attr = self._parse_any_attributes()
+    ident = self.lex.parse_identifier()
+    return ident
+
+
   def _parse_any_type_parameter_constraints_clauses(self):
     return self._parse_any(self._parse_type_parameter_constraints_clause)
 
   def _parse_type_parameter_constraints_clause(self):
     self.swallow_word_and_ws('where')
     name = self._parse_type_parameter()
-    self.swallow_character_and_ws(':')
+    self.swallow_with_ws(':')
     import pdb
     pdb.set_trace()
 
     # Attempt any primary constraints
     constraints = [self._parse_primary_constraint()]
-    if self.skip_character_and_ws(','):
-      constraints.extend(self._parse_many(self._parse_type_name, ','))
+    if self.core.skip_with_ws(','):
+      constraints.extend(self._parse_any(self._parse_type_name, ','))
 
     print constraints
       # parameter_constraint_list = self.parse_comma_list(("where", "{"))
@@ -447,18 +477,6 @@ class FileParser(object):
     qal.parts = (id1, id2, args)
     qal.form = "{} :: {} {}"
     return qal
-
-  def _parse_qualified_identifier(self):
-    items = []
-    while True:
-      ident = self.lex.parse_identifier()
-      if not ident:
-        break
-      items.append(ident)
-      if not self.core.skip_with_ws('.'):
-        break
-    self.core.skip_ws()
-    return ".".join(items)
 
   def _parser_input_element(self):
     if self.skip_ws():
@@ -644,6 +662,9 @@ class FileParser(object):
 # using-statement 
 # yield-statement
 
+
+  def _parse_global_attribute_section(self):
+    return self._parse_attribute_section(['assembly', 'module'])  
 
   def _parse_statement_expression(self):
     pass
