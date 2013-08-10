@@ -19,22 +19,22 @@ KEYWORDS = ("abstract", "byte", "class", "delegate", "event",
 
 
 class NamedDefinition(object):
-  name = None
+  definitionname = None
   parts = []
   _strip = True
   form = ""
 
   def __init__(self, name):
-    self.name = name
+    self.definitionname = name
 
   def __str__(self):
     return self.form
 
   def __repr__(self):
-    return "<{}: {}>".format(self.name, str(self))
+    return "<{}: {}>".format(self.definitionname, str(self))
 
 class Comment(NamedDefinition):
-  name = "comment"
+  definitionname = "comment"
   def __init__(self, comment):
     self.parts.append(comment)
     self.form = "// " + comment
@@ -54,6 +54,11 @@ class CommaNameList(SeparatedNameList):
 
 class TypeName(NamedDefinition):
   arguments = []
+
+class Member(NamedDefinition):
+  name = None
+  attributes = []
+  modifiers = []
 
 class LexicalParser(object):
   core = None

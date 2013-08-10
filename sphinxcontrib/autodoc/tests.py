@@ -30,8 +30,8 @@ class TestAutodoc(unittest.TestCase):
     self.assertEqual(out, "a.b.something.c")
 
   def test_parse_class_decl(self):
-    p = FileParser('protected class ViewModel<T, Q> : IViewModel, IEditableObject, INotifyDataErrorInfo where T : class, IModelClass, new()')
-    p._parse_class_declaration()
+    p = FileParser('protected class ViewModel<T, Q> : IViewModel, IEditableObject, INotifyDataErrorInfo where T : class, IModelClass, new() { }')
+    p._parse_class_declaration_header()
 
   def test_parse_type(self):
     p = FileParser('string')

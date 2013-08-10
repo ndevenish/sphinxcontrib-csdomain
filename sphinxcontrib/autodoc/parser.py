@@ -8,7 +8,7 @@ import os
 from ..parser import DefinitionParser, DefinitionError
 from ..types import ClassInfo
 from .core import CoreParser
-from .lexical import LexicalParser, TypeName
+from .lexical import LexicalParser, TypeName, Member
 
 def opensafe(filename, mode = 'r'):
   bytes = min(32, os.path.getsize(filename))
@@ -359,10 +359,24 @@ class FileParser(object):
     # delegate-declaration
     pass
 
+  def _parse_qualified_alias_member(self):
+    #     qualified-alias-member:
+    # identifier :: identifier type-argument-listopt
+    id1 = self._parse_identifier()
+    self.swallow_word_and_ws('::')
+    id2 = self._parse_identifier()
+    args = self._parse_type_argument_list()
+    if not id1 or not id2:
+      raise DefinitionError("Invalid qualified-alias-member")
+    qal = NamedDefinition('qualified-alias-member')
+    qal.parts = (id1, id2, args)
+    qal.form = "{} :: {} {}"
+    return qal
+
 
   ## B.2.7 Classes ####################################
 
-  def _parse_class_declaration(self):
+  def _parse_class_declaration_header(self):
     # Partly handled by prior, but be strict here
     clike = ClassInfo(None)
     
@@ -381,26 +395,23 @@ class FileParser(object):
     self.core.skip_ws()
     
     constraints = self._parse_any_type_parameter_constraints_clauses()
-    print constraints
-    # attributesopt class-modifiersopt partialopt class identifier type-parameter-listopt
-# class-baseopt type-parameter-constraints-clausesopt class-body ;o
-    #     clike = ClassInfo()
+    
+    return clike
+    
+  def _parse_class_declaration(self):
 
-    # clike._modifiers = self._parse_class_modifiers()
-    # clike._partial = self.skip_word_and_ws("partial")
-    # self.swallow_character_and_ws('class')
-    # clike._full_name = self._parse_type_name()
-    # clike._name = clike._full_name._name
-    # # Optional type-parameter list
-    # clike._type_parameters = [x._name for x in clike._full_name._arguments]
+    clike = self._parse_class_declaration_header()
 
-    # # (Optional) Class-bases next, starting with :
-    # if self.skip_character_and_ws(':'):
-    #   clike._bases = self.parse_comma_list(("where", "{"), self._parse_type_name)
+    self.core.skip_ws()
+    import pdb
+    pdb.set_trace()
 
-    # # Optional type-parameter-constraints
-    # self.skip_ws()
-    # clike._type_parameter_constraints = self._parse_type_parameter_constraints_clauses()
+    # Class body
+    print "Line: " + self.core.definition[self.core.pos:self.core.pos+30]
+    self.swallow_with_ws('{')
+    members = self._parse_any_class_member_declarations()
+    self.swallow_with_ws('}')
+    self.core.skip_with_ws(";")
 
   def _parse_type_parameter_list(self):
     self.swallow_with_ws('<')
@@ -422,23 +433,17 @@ class FileParser(object):
     self.swallow_word_and_ws('where')
     name = self._parse_type_parameter()
     self.swallow_with_ws(':')
-    import pdb
-    pdb.set_trace()
 
     # Attempt any primary constraints
     constraints = [self._parse_primary_constraint()]
     if self.core.skip_with_ws(','):
       constraints.extend(self._parse_any(self._parse_type_name, ','))
 
-    print constraints
-      # parameter_constraint_list = self.parse_comma_list(("where", "{"))
-      # # If we ended with new, swallow the ()
-      # if parameter_constraint_list[-1] == "new":
-      #   self.skip_character('(')
-      #   self.skip_character_and_ws(')')
-      #   parameter_constraint_list[-1] = 'new()'
-
-      # parameter_constraints[parameter_name] = parameter_constraint_list
+    if constraints and str(constraints[-1]) == "new":
+      self.swallow_with_ws('(')
+      self.swallow_with_ws(')')
+      t = constraints[-1]
+    
     return constraints
 
   def _parse_primary_constraint(self):
@@ -450,33 +455,32 @@ class FileParser(object):
     if self.skip_word_and_ws("struct"):
       return "struct"
 
-  def _parse_class_type(self):
-    # Type-name
-    tname = self._parse_type_name()
-    if tname:
-      return tname
-    if self.skip_word_and_ws("object"):
-      return "object"
-    if self.skip_word_and_ws("dynamic"):
-      return "dynamic"
-    if self.skip_word_and_ws("string"):
-      return "string"
-    return None
+  def _parse_any_class_member_declarations(self):
+    return self._parse_any(self._parse_class_member_declaration)
+
+  def _parse_class_member_declaration(self):
+    # constant-declaration field-declaration method-declaration property-declaration event-declaration indexer-declaration operator-declaration constructor-declaration destructor-declaration static-constructor-declaration type-declaration
+    return self.first_of((
+      self._parse_constant_declaration
+    ))
+
+  def _parse_constant_declaration(self):
+    m = Member("constant-declaration")
+    m.attributes = self._parse_any_attributes()
+    m.modifiers = self._parse_any_modifiers(['new', 'public', 'protected', 'internal', 'private'])
+    self.swallow_word_and_ws('const')
+    m.type = self._parse_type()
+    m.name = self.lex.parse_identifier()
+    self.swallow_with_ws('=')
+    m.expression = self._parse_expression()
+    self.swallow_with_ws(';')
+    if not m.type or not m.name or not m.expression:
+      raise DefinitionError()
+    return m
 
 
-  def _parse_qualified_alias_member(self):
-    #     qualified-alias-member:
-    # identifier :: identifier type-argument-listopt
-    id1 = self._parse_identifier()
-    self.swallow_word_and_ws('::')
-    id2 = self._parse_identifier()
-    args = self._parse_type_argument_list()
-    if not id1 or not id2:
-      raise DefinitionError("Invalid qualified-alias-member")
-    qal = NamedDefinition('qualified-alias-member')
-    qal.parts = (id1, id2, args)
-    qal.form = "{} :: {} {}"
-    return qal
+
+  ## Uncategorised ####################################
 
   def _parser_input_element(self):
     if self.skip_ws():
