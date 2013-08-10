@@ -25,7 +25,7 @@ class MemberInfo(object):
   _name = None
   _type = None
   _full_name = None
-  _member_category = None
+  _member_category = 'member'
 
   @property
   def visibility(self):
@@ -35,6 +35,11 @@ class MemberInfo(object):
       return None
     return visibility.pop()
 
+  def print_summary(self):
+    print "{}: {}".format(self._member_category, self._full_name.fqn())
+    print "  Modifiers: {}".format(", ".join(self._modifiers))
+    print "  Return:    {}".format(self._type)
+
 
 class MethodInfo(MemberInfo):
   _member_category = "method"
@@ -42,6 +47,18 @@ class MethodInfo(MemberInfo):
   valid_modifiers = ('new', 'public', 'protected', 'internal', 'private',
                    'static', 'virtual', 'sealed', 'override', 'abstract',
                    'extern')
+  def print_summary(self):
+    super(MethodInfo, self).print_summary()
+    print "  Arguments: {}".format(len(self._arguments))
+    for arg in self._arguments:
+      argspec = ""
+      if arg['attributes']:
+        argspec += full_attribute_name(arg['attributes']) + " "
+      if arg['modifiers']:
+        argspec += " ".join(arg['modifiers']) + " "
+      # argspec += arg['type'] + ' ' + arg['name']
+      print "    {}{} {}".format(argspec, arg['type'], arg['name'])
+
 
 class PropertyInfo(MemberInfo):
   _member_category = "property"

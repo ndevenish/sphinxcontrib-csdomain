@@ -62,6 +62,15 @@ class TestDefinitionParser(unittest.TestCase):
     self.assertEqual(mi._name, "HasErrors")
     self.assertEqual(mi._full_name.fqn(), "ViewModel.HasErrors")
 
+  def testBadconstructor(self):
+    mi = DefinitionParser("public DBPreflight(LoginDetails details)").parse_member()
+    self.assertEqual(mi._member_category, 'constructor')
+    self.assertEqual(mi._name, "DBPreflight")
+    self.assertEqual(len(mi._arguments), 1)
+    arg = mi._arguments[0]
+    self.assertEqual(arg['type']._name, 'LoginDetails')
+    self.assertEqual(arg['name'], 'details')
+
 class TestParts(unittest.TestCase):
   def testNamespace(self):
     dp = DefinitionParser("test.namespace.ViewModel")
