@@ -635,12 +635,12 @@ class FileParser(object):
     m.type = self._parse_return_type()
     m.name = self._parse_type_name()
     type_params = self.opt(self._parse_type_parameter_list)
-    self.swallow_character_and_ws('(')
+    self.swallow_with_ws('(')
 
     m.parameters = self.opt(self._parse_formal_parameter_list)
     print "Parameters: " + m.parameters
     
-    self.swallow_character_and_ws(')')
+    self.swallow_with_ws(')')
     constraints = self._parse_any_type_parameter_constraints_clauses()
 
     return m
@@ -660,7 +660,7 @@ class FileParser(object):
     # attributesopt parameter-modifieropt type identifier default-argumentopt
     p = FormalParameter('fixed-parameter')
     p.attributes = self._parse_any_attributes()
-    p.modifiers = self.opt(self.swallow_one_of(['ref', 'out', 'this']))
+    p.modifiers = self.opt(lambda: self.swallow_one_of(['ref', 'out', 'this']))
     p.type = self._parse_type()
     p.name = self.lex.parse_identifier()
 
@@ -677,6 +677,7 @@ class FileParser(object):
     # import pdb
     # pdb.set_trace()
     # constructor-declarator constructor-body
+
     m = Member('constructor-declaration')
     m.attributes = self._parse_any_attributes()
     m.modifiers = self._parse_any_modifiers(['public', 'protected', 'internal', 'private', 'extern'])
