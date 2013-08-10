@@ -50,6 +50,13 @@ class DefinitionParser(object):
       else:
         raise DefinitionError("Unexpected end-of-string; Expected '{}'".format(char))
 
+  def swallow_word_and_ws(self, word):
+    if not self.skip_word_and_ws(word):
+      if not self.eof:
+        raise DefinitionError("Unexpected token: '{}'; Expected '{}'".format(self.definition[self.pos:self.pos+20], word))
+      else:
+        raise DefinitionError("Unexpected end-of-string; Expected '{}'".format(word))
+
   def skip_ws(self):
     return self.match(_whitespace_re)
 
@@ -454,14 +461,15 @@ class DefinitionParser(object):
       self.skip_ws()
     return attrs
 
-  def _parse_attribute_section(self):
+  def _parse_attribute_section(self, targets = None):
     self.swallow_character_and_ws('[')
 
     # Do we have an attribute target specifier?
-    specifiers = ['field', 'event', 'method', 'param', 'property', 'return', 'type']
+    if not targets:
+      targets = ['field', 'event', 'method', 'param', 'property', 'return', 'type']
     self.match(_identifier_re)
     target = None
-    if self.matched_text in specifiers:
+    if self.matched_text in targets:
       target = self.matched_text
       self.skip_ws()
       self.swallow_character_and_ws(":")
