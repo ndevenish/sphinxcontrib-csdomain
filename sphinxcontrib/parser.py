@@ -1,7 +1,7 @@
 # coding: utf-8
 
 import re
-from .types import TypeInfo, MethodInfo, PropertyInfo, ClassInfo, MemberInfo
+from .types import *
 
 _identifier_re = re.compile(r'(~?\b[a-zA-Z_][a-zA-Z0-9_]*)\b')
 # _visibility_re = re.compile(r'\b(public|private|protected)\b')

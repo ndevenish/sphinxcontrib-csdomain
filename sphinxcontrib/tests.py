@@ -1,7 +1,8 @@
 # coding: utf-8
 
 import unittest
-from csdomain import DefinitionParser, PropertyInfo
+from .parser import DefinitionParser
+from .types import PropertyInfo
 
 class TestDefinitionParser(unittest.TestCase):
   def testInit(self):
