@@ -69,6 +69,8 @@ class TypeParameterList(SeparatedNameList):
 class Statement(NamedDefinition):
   pass
 
+class Attribute(NamedDefinition):
+  pass
 class Member(NamedDefinition):
   name = None
   attributes = []

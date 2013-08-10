@@ -9,7 +9,8 @@ from ..parser import DefinitionParser, DefinitionError
 from ..types import ClassInfo
 from .core import CoreParser
 import lexical
-from .lexical import LexicalParser, TypeName, Member, FormalParameter, Statement
+from .lexical import LexicalParser, TypeName, Member, \
+  FormalParameter, Statement, Attribute
 
 def opensafe(filename, mode = 'r'):
   bytes = min(32, os.path.getsize(filename))
@@ -320,7 +321,7 @@ class FileParser(object):
     decl = self._parse_any(self._parse_local_variable_declarator, ',')
     if not decl:
       raise DefinitionError("Not a valid variable declaration")
-    self.swallow_character_and_ws(';')
+    self.swallow_with_ws(';')
     form = "{} {}".format(t, decl)
     return Statement('local-variable-declaration', form)
 
@@ -338,7 +339,7 @@ class FileParser(object):
     # Try skipping to the next ;
     contents = self.core.skip_to_any_char(';}')
     self.swallow_with_ws(';')
-    print "SKipped: " + contents
+    # print "SKipped: " + contents
     return contents
 
   ## B.2.6 Namespaces #################################
@@ -569,7 +570,7 @@ class FileParser(object):
       self._parse_constant_declaration,
       self._parse_field_declaration,
       self._parse_method_declaration,
-      #property,
+      self._parse_property_declaration,
       #event,
       #indexer,
       self._parse_constructor_declaration,
@@ -638,7 +639,7 @@ class FileParser(object):
     self.swallow_with_ws('(')
 
     m.parameters = self.opt(self._parse_formal_parameter_list)
-    print "Parameters: " + m.parameters
+    print "Parameters: " + str(m.parameters)
     
     self.swallow_with_ws(')')
     constraints = self._parse_any_type_parameter_constraints_clauses()
@@ -671,6 +672,37 @@ class FileParser(object):
     p.form = p.form.strip()
 
     return p  
+
+  def _parse_property_declaration(self):
+    print "Trying to parse property: " + self.cur_line()
+    m = Member('property-declaration')
+    m.attributes = self._parse_any_attributes()
+    m.modifiers = self._parse_any_property_modifiers()
+    m.type = self._parse_type()
+    m.name = self._parse_type_name()
+    self.swallow_with_ws('{')
+    # Accessor declarations
+    acc = self._parse_accessor_declaration()
+    acc2 = self.opt(self._parse_accessor_declaration)
+    if acc2:
+      m.accessors = [acc, acc2]
+    else:
+      m.accessors = [acc]
+    self.swallow_with_ws('}')
+    print "Parsed property"
+    return m
+
+  def _parse_accessor_declaration(self):
+    #attributesopt accessor-modifieropt get accessor-body
+    m = Member('accessor')
+    m.attributes = self._parse_any_attributes()
+    m.modifiers = self._parse_any_modifiers(['protected', 'internal', 'private'])
+    m.accessor = self.swallow_one_of(['get', 'set'])
+    m.body = self._parse_block()
+    if not m.body:
+      self.swallow_with_ws(';')
+    m.definitionname = '{}-accessor-declaration'.format(m.accessor)
+    return m
 
   def _parse_constructor_declaration(self):
     print "Trying to parse constructor: " + self.cur_line()
@@ -727,7 +759,8 @@ class FileParser(object):
 
   def _parse_expression(self):
     # Complicated... skip for now
-    raise Exception("Not processing expressions")
+    return self._parse_fudged_statement()
+    # raise Exception("Not processing expressions")
 
   def _parse_any_attributes(self):
     return self._parse_any(self._parse_attribute_section)
@@ -738,31 +771,25 @@ class FileParser(object):
     # Do we have an attribute target specifier?
     if not targets:
       targets = ['field', 'event', 'method', 'param', 'property', 'return', 'type']
-    self.match(_identifier_re)
+    target = self.opt(lambda: self.swallow_one_of(targets))
     target = None
-    if self.matched_text in targets:
-      target = self.matched_text
-      self.skip_ws()
-      self.swallow_character_and_ws(":")
-    else:
-      self.backout()
 
-    asi = AttributeSectionInfo()
-    asi._target = target
-    asi._attributes = self.parse_comma_list([r']'], self._parse_attribute)
-    self.swallow_character_and_ws(']')
+    asi = Attribute('attribute-section')
+    asi.target = target
+    asi.attributes = self._parse_any(self._parse_attribute, ',')
+    self.swallow_with_ws(']')
     return asi
 
   def _parse_attribute(self):
     name = self._parse_type_name()
     arguments = self._parse_attribute_arguments()
-    attr = AttributeInfo()
-    attr._name = name
-    attr._arguments = arguments
+    attr = Attribute('attribute')
+    attr.name = name
+    attr.arguments = arguments
     return attr
 
   def _parse_attribute_arguments(self):
-    if not self.skip_character_and_ws('('):
+    if not self.core.skip_with_ws('('):
       return []
     # Skip anything until the end )
     self.match(re.compile(r"[^)]*"))
