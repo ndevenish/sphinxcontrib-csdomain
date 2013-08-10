@@ -1,7 +1,8 @@
 # coding: utf-8
 
 import unittest
-from .parser import FileParser, CommentInfo, opensafe
+from .parser import FileParser, opensafe
+from .lexical import Comment
 
 SAMPLE = "/Users/xgkkp/dockets/app/Core/Utils/DBPreflight.cs"
 
@@ -14,17 +15,24 @@ class TestAutodoc(unittest.TestCase):
 
   def test_eol(self):
     parser = FileParser("Some text to the end\nof the line")
-    self.assertEqual(parser.skip_to_eol(), "Some text to the end")
-    self.assertEqual(parser.definition[parser.pos:], "of the line")
+    self.assertEqual(parser.core.skip_to_eol(), "Some text to the end")
+    self.assertEqual(parser.core.definition[parser.core.pos:], "of the line")
 
   def test_comment(self):
     parser = FileParser("// Some text to the end\nof the line")
-    comment = parser._parse_comment()
-    self.assertIs(type(comment), CommentInfo)
-    self.assertEqual(parser.definition[parser.pos:], "of the line")
+    comment = parser.lex.parse_comment()
+    self.assertIs(type(comment), Comment)
+    self.assertEqual(parser.core.definition[parser.core.pos:], "of the line")
 
   def test_qual_ident(self):
     p = FileParser("a.b.something.c and then..")
     out = p._parse_qualified_identifier()
     self.assertEqual(out, "a.b.something.c")
 
+  def test_parse_class_decl(self):
+    p = FileParser('protected class ViewModel<T, Q> : IViewModel, IEditableObject, INotifyDataErrorInfo where T : class, IModelClass, new()')
+    p._parse_class_declaration()
+
+  def test_parse_type(self):
+    p = FileParser('string')
+    p._parse_type()

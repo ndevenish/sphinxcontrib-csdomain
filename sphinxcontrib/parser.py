@@ -53,7 +53,7 @@ class DefinitionParser(object):
   def swallow_word_and_ws(self, word):
     if not self.skip_word_and_ws(word):
       if not self.eof:
-        raise DefinitionError("Unexpected token: '{}'; Expected '{}'".format(self.definition[self.pos:self.pos+20], word))
+        raise DefinitionError("Unexpected token: '{}'; Expected '{}'".format(self.definition[self.pos], word))
       else:
         raise DefinitionError("Unexpected end-of-string; Expected '{}'".format(word))
 
@@ -460,6 +460,9 @@ class DefinitionParser(object):
       attrs.append(self._parse_attribute_section())
       self.skip_ws()
     return attrs
+
+  def _parse_any_attributes(self):
+    return self._parse_any(_parse_attribute_section)
 
   def _parse_attribute_section(self, targets = None):
     self.swallow_character_and_ws('[')
