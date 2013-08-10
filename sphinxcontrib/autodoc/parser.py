@@ -120,7 +120,7 @@ class FileParser(object):
         items.append(item)
         state = self.savepos()
         if separator:
-          self.swallow_character_and_ws(separator)
+          self.swallow_with_ws(separator)
 
     except DefinitionError:
       self.restorepos(state)
@@ -141,7 +141,9 @@ class FileParser(object):
   def _parse_namespace_or_type_name(self):
     def _first():
       # identifier type-argument-listopt
-      ident = self.lex.parse_identifier()
+      ident = ".".join(self._parse_any(self.lex.parse_identifier, '.'))
+
+      # ident = self.lex.parse_identifier()
       if not ident:
         raise DefinitionError()
       args = self.opt(self._parse_type_argument_list)
@@ -150,7 +152,7 @@ class FileParser(object):
     def _second():
       # namespace-or-type-name . identifier 
       nmsp = self._parse_namespace_or_type_name()
-      self.swallow_character_and_ws('.')
+      self.swallow_with_ws('.')
       ident = self.lex._parse_identifier()
       if not nmsp or not ident:
         raise DefinitionError()
@@ -223,6 +225,8 @@ class FileParser(object):
 
 
 
+
+
   def _parse_compilation_unit(self):
     # None-or more "extern alias identifier ;"
     extern_alias = self._parse_any_extern_alias_directives()
@@ -257,6 +261,9 @@ class FileParser(object):
 
   def _parse_using_directive(self):
     """Attempt to parse both types of using directive"""
+    # import pdb
+    # pdb.set_trace()
+
     state = self.savepos()
     try:
       self.swallow_word_and_ws('using')
@@ -321,15 +328,15 @@ class FileParser(object):
     # Parse namespace body
     # { extern-alias-directivesopt using-directivesopt 
     # namespace-member-declarationsopt }
-    self.swallow_character_and_ws("{")
-    space.extern_alias = self._parse_extern_alias_directives()
-    space.using = self._parse_using_directives()
+    self.swallow_with_ws("{")
+    space.extern_alias = self._parse_any_extern_alias_directives()
+    space.using = self._parse_any_using_directives()
     print "Parsing internals of namespace: " + space.name
-    space.members = self._parse_namespace_member_declarations()
+    space.members = self._parse_any_namespace_member_declarations()
     print "   Parsed {} members".format(len(space.members))
-    self.swallow_character_and_ws("}")
+    self.swallow_with_ws("}")
 
-    self.skip_character_and_ws(";")
+    self.core.skip_with_ws(";")
 
     return space
 
