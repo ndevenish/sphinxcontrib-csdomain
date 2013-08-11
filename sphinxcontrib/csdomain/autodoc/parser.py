@@ -223,7 +223,7 @@ class FileParser(object):
       simple_types = ("sbyte", "byte", "short", "ushort", "int", "uint", "long", "ulong", "char", "decimal", "bool")
       kw = self.lex.parse_identifier_or_keyword()
       if kw in simple_types:
-        return kw
+        return TypeName("value-type", kw)
       raise DefinitionError("Not a simple type")
 
     def _struct_type():
@@ -522,7 +522,7 @@ class FileParser(object):
     self.core.skip_with_ws('partial')
 
     # self.swallow_with_ws('class')
-    clike.class_type = self.swallow_one_of(['class', 'struct', 'interface'])
+    clike.class_type = self.swallow_one_of(['class', 'struct', 'interface', 'enum'])
     # Technically, should now check that the modifiers was a subset
     # of new, public, protected, internal, private
 
@@ -551,14 +551,17 @@ class FileParser(object):
       # Class body
       # print "Line: " + self.core.definition[self.core.pos:self.core.pos+30]
       self.swallow_with_ws('{')
-      clike.members = self._parse_any_class_member_declarations()
+      if clike.class_type in ('class', 'struct', 'interface'):
+        clike.members = self._parse_any_class_member_declarations()
+      elif clike.class_type in ('enum',):
+        clike.members = self._parse_any_enum_member_declarations()
       self.swallow_with_ws('}')
       self.core.skip_with_ws(";")
       # print "Parsed {} {}".format(clike.class_type, clike.name)
     except:
       if self._debug:
-        # import pdb
-        # pdb.post_mortem()
+        import pdb
+        pdb.post_mortem()
         print "Exception parsing class on line {}: {}".format(self.core.line_no, self.core.get_line())
       raise
     finally:
@@ -807,6 +810,26 @@ class FileParser(object):
     # import pdb
     # pdb.set_trace()
     return form
+  
+  ## B.2.11 Enums #####################################
+
+  def _parse_any_enum_member_declarations(self):
+    return self._parse_any(self._parse_enum_member_declaration, ",")
+
+  def _parse_enum_member_declaration(self):
+    m = Member("enum-member-declaration")
+    m.attributes = self._parse_any_attributes()
+    m.name = self.lex.parse_identifier()
+    if self.core.skip_with_ws("="):
+      m.comps["constant-expression"] = self._parse_expression()
+    m.form = ""
+    if m.attributes:
+      m.form += str(m.attributes) + " "
+    m.form += m.name
+    if m.comps.get("constant-expression", None):
+      m.form += " = {}".format(m.comps["constant-expression"])
+    return m
+
 
   ## Uncategorised ####################################
 
@@ -840,7 +863,7 @@ class FileParser(object):
         print "  " + str(counts)
       
       if any(x < 0 for x in counts.itervalues()) \
-        or (all(x <= 0 for x in counts.itervalues()) and nextmatch == ';'):
+        or (all(x <= 0 for x in counts.itervalues()) and nextmatch in [',', ';']):
         # print "Breaking expression!"
         if DBG:
           print "Parsed balanced expression: " + expr
@@ -883,9 +906,9 @@ class FileParser(object):
     if not self.core.skip_with_ws('('):
       return []
     # Skip anything until the end )
-    self.match(re.compile(r"[^)]*"))
-    value = self.matched_text
-    self.swallow_character_and_ws(')')
+    self.core.match(re.compile(r"[^)]*"))
+    value = self.core.matched_text
+    self.swallow_with_ws(')')
     return [value]
 
   def _parse_any_class_modifiers(self):
