@@ -595,10 +595,10 @@ class FileParser(object):
       self.core.skip_with_ws(";")
       # print "Parsed {} {}".format(clike.class_type, clike.name)
     except:
-      if self._debug:
-        import pdb
-        pdb.post_mortem()
-        print "Exception parsing class on line {}: {}".format(self.core.line_no, self.core.get_line())
+      # if self._debug:
+      #   import pdb
+      #   pdb.post_mortem()
+      print "Exception parsing class on line {}: {}".format(self.core.line_no, self.core.get_line())
       raise
     finally:
       self.namespace.pop()
@@ -723,9 +723,10 @@ class FileParser(object):
   def _parse_method_declaration(self):
     # print "Trying to parse member: " + self.cur_line()
 
-    # if self.core.line_no == 155:
-    #   import pdb
-    #   pdb.set_trace()
+    if self.core.line_no == 127 and self._debug:
+      import pdb
+      pdb.set_trace()
+
     self._parsing = "method-declaration"
     m = self._parse_method_header()
 
@@ -754,11 +755,12 @@ class FileParser(object):
     return m
 
   def _parse_return_type(self):
-    rt = self._parse_type()
+    rt = self.opt(self._parse_type)
     if rt:
       return rt
     if self.core.skip_word_and_ws('void'):
-      return void
+      return TypeName("return-type", "void")
+    raise DefinitionError("Couldn't parse return type")
 
   def _parse_formal_parameter_list(self):
     fixed = self._parse_any(self._parse_fixed_parameter, ',')
