@@ -51,7 +51,7 @@ class XmldocParser(object):
   def process_node(self, node):
     """Processes a special node into a string"""
     # Summary, remarks are just flattened
-    if node.tag in ("summary", "remarks", "xmldoc"):
+    if node.tag in ("summary", "remarks", "xmldoc", "value"):
       text = " ".join(self.flatten_node(node))
       if node.tag != "xmldoc" and not text[-1] == ".":
         text += "."
