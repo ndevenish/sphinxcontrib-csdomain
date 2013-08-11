@@ -4,7 +4,7 @@ import re
 from .xmldoc import XmldocParser
 
 _identifier_re = re.compile(r'(~?\b[a-zA-Z_][a-zA-Z0-9_]*)\b')
-_doc_comment_skip_re = re.compile(r'[\s/]*')
+_doc_comment_skip_re = re.compile(r'^[\s/]*')
 
 KEYWORDS = ("abstract", "byte", "class", "delegate", "event", 
   "fixed", "if", "internal", "new", "override", "readonly", 
@@ -63,12 +63,12 @@ class Comment(NamedDefinition):
     return self.parts[0].startswith("/")
 
   def parse_documentation(self):
-    def _strip_leading(line):
-      index = len(_doc_comment_skip_re.match(line).group())
-      return line[index:]
-    # Strip the leading / and whitespace from every line
-    stripped = [_strip_leading(x).strip() for x in self.parts]
-    fulltext = " ".join(stripped)
+    # Grab the leading indentation from the first line
+    index = len(_doc_comment_skip_re.match(self.parts[0]).group())
+    # Strip this from the others
+    stripped = [x[index:] for x in self.parts]
+    # Rejoin these
+    fulltext = "\n".join(stripped)
     return XmldocParser(fulltext).parse()
 
 class SeparatedNameList(NamedDefinition):
