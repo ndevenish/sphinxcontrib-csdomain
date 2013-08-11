@@ -21,7 +21,11 @@ class CSAutodocModule(Directive):
   def run(self):
     env = self.state.document.settings.env
 
-    path = self.arguments[0]
+
+    rel_filename, filename = env.relfn2path(self.arguments[0])
+    print rel_filename, filename
+    
+    path = filename
     if not os.path.isfile(path):
       raise IOError("Could not read autodoc file {}".format(path))
 
