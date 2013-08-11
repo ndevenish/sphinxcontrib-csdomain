@@ -204,8 +204,20 @@ class FileParser(object):
   ## B.2.2 Types ####################################
 
   def _parse_type(self):
+    state = self.core.savepos()
     tname = self.first_of((self._parse_value_type, 
       self._parse_reference_type, self._parse_type_parameter))
+    # Check for array type
+    if self.core.skip_with_ws('['):
+      # Looks like we have an array type on our hands...
+      state_pre = self.core.savepos()
+      self.core.restorepos(state)
+      arrt = self._parse_array_type()
+      if arrt:
+        tname = arrt
+      else:
+        # Use the previous match
+        self.core.restorepos(state_pre)
     tname.nullable = self.core.skip_with_ws("?")
     return tname
 
@@ -213,8 +225,8 @@ class FileParser(object):
     tname = self.first_of((self._parse_value_type, self._parse_class_type, 
       self._parse_interface_type, self._parse_delegate_type, 
       self._parse_type_parameter))
-    nullable = self.core.skip_with_ws("?")
-    return (tname, nullable)    
+    tname.nullable = self.core.skip_with_ws("?")
+    return tname
 
   def _parse_value_type(self):
     def _simple_type():
@@ -261,6 +273,9 @@ class FileParser(object):
     while self.core.skip_with_ws(','):
       pass
     self.swallow_with_ws(']')
+    nat.array = True
+    return nat
+
 
   def _parse_type_argument_list(self):
     #type-argument-list: < type... >
@@ -549,6 +564,12 @@ class FileParser(object):
       self.swallow_with_ws('}')
       self.core.skip_with_ws(";")
       # print "Parsed {} {}".format(clike.class_type, clike.name)
+    except:
+      if self._debug:
+        # import pdb
+        # pdb.post_mortem()
+        print "Exception parsing class on line {}: {}".format(self.core.line_no, self.core.get_line())
+      raise
     finally:
       self.namespace.pop()
 
@@ -667,7 +688,7 @@ class FileParser(object):
   def _parse_method_declaration(self):
     # print "Trying to parse member: " + self.cur_line()
 
-    # if self.cur_line().startswith('[NotifyProper'):
+    # if self.core.line_no == 155:
     #   import pdb
     #   pdb.set_trace()
 

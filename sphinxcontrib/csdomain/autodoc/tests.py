@@ -4,6 +4,8 @@ import unittest
 from .parser import FileParser, opensafe
 from .lexical import Comment, summarize_space
 from .core import CoreParser
+import glob
+import os
 
 SAMPLE = "/Users/xgkkp/dockets/app/Core/Utils/DBPreflight.cs"
 
@@ -74,3 +76,24 @@ class TestAutodoc(unittest.TestCase):
     for cls in cu.iter_classes():
       if cls.documentation:
         cls.documentation.parse_documentation()
+
+  def test_parse_array_type(self):
+    tp = "string[]"
+    p = FileParser(tp)
+    # import pdb
+    # pdb.set_trace()
+    p._parse_type()
+    self.assertTrue(p.core.eof)
+
+  def test_whole_folder(self):
+    pattern = "/Users/xgkkp/dockets/app/Core/Utils/DBDriver.cs"
+    for filename in glob.glob(pattern):
+      print "================="
+      print "Parsing " + os.path.basename(filename)
+      contents = opensafe(filename).read()
+      parser = FileParser(contents)
+      # parser._debug = True
+      cu = parser.parse_file()
+      summarize_space(cu)
+
+    
