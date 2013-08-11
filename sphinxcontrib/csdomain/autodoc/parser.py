@@ -62,6 +62,7 @@ class FileParser(object):
   core = None
   lex = None
   namespace = None
+  _debug = False
 
   def __init__(self, definition):
     self.core = CoreParser(definition)
@@ -403,6 +404,9 @@ class FileParser(object):
       # print "Namespace Post-Coalescing"
 
       return space
+    except:
+      if self._debug:
+        print "Exception parsing namespace on line {}: {}".format(self.core.line_no, self.core.get_line())
     finally:
       self.namespace.pop()
 

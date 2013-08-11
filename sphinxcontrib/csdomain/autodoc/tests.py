@@ -65,6 +65,7 @@ class TestAutodoc(unittest.TestCase):
     filename = "/Users/xgkkp/dockets/app/Core/Utils/DB.cs"
     contents = opensafe(filename).read()
     parser = FileParser(contents)
+    parser._debug = True
     # parser.parse_file()
     cu = parser.parse_file()
     summarize_space(cu)
