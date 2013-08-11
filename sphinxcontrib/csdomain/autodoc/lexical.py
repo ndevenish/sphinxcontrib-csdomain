@@ -239,6 +239,14 @@ class LexicalParser(object):
   def restorepos(self, state):
     self.core.restorepos(state)
 
+  def parse_keyword(self):
+    state = self.core.savepos()
+    ide = self.parse_identifier_or_keyword()
+    if ide in KEYWORDS:
+      return ide
+    self.core.restorepos(state)
+    return None
+
   def parse_identifier_or_keyword(self):
     state = self.core.savepos()
     prefix = self.core.skip('@')
@@ -253,7 +261,6 @@ class LexicalParser(object):
 
   def parse_identifier(self):
     state = self.core.savepos()
-    
     ident = self.parse_identifier_or_keyword()
     if not ident:
       return None
