@@ -205,8 +205,8 @@ class FileParser(object):
   def _parse_type(self):
     tname = self.first_of((self._parse_value_type, 
       self._parse_reference_type, self._parse_type_parameter))
-    nullable = self.core.skip_with_ws("?")
-    return (tname, nullable)
+    tname.nullable = self.core.skip_with_ws("?")
+    return tname
 
   def _parse_nonarray_type(self):
     tname = self.first_of((self._parse_value_type, self._parse_class_type, 
@@ -717,7 +717,7 @@ class FileParser(object):
 
   def _parse_property_declaration(self):
     # print "Trying to parse property: " + self.cur_line()
-    m = Member('property-declaration')
+    m = Property('property-declaration')
     m.attributes = self._parse_any_attributes()
     m.modifiers = self._parse_any_property_modifiers()
     m.type = self._parse_type()

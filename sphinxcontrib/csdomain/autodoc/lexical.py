@@ -140,6 +140,19 @@ class Class(Space):
   def __str__(self):
     return self.name
 
+  def signature(self):
+    sig = []
+    if self.attributes:
+      print "Don't know how to sign attributes: " + str(self.attributes)
+      sig.append("[attributes]")
+    sig.extend(self.modifiers)
+    sig.append(self.class_type)
+    sig.append(self.name)
+    if self.bases:
+      sig.append(":")
+      sig.append(", ".join(str(x) for x in self.bases))
+    return " ".join(sig)
+
 class Statement(NamedDefinition):
   pass
 
@@ -148,9 +161,34 @@ class Attribute(NamedDefinition):
 
 class Member(NamedDefinition):
   name = None
-  attributes = []
-  modifiers = []
+  attributes = None
+  modifiers = None
   documentation = None
+  def __init__(self, name):
+    super(Member, self).__init__(name)
+    attributes = []
+    modifiers = []
+  
+  def signature(self):
+    return repr(self)
+
+class Property(Member):
+  def signature(self):
+    sig = []
+    sig.extend(self.modifiers)
+    sig.append(self.type)
+    sig.append(self.name)
+    sig.append("{")
+    getter = next(x for x in self.accessors if x.accessor == "get")
+    if getter:
+      sig.extend(getter.modifiers)
+      sig.append("get;")
+    setter = next(x for x in self.accessors if x.accessor == "set")
+    if setter:
+      sig.extend(getter.modifiers)
+      sig.append("set;")
+    sig.append("}")
+    return " ".join(str(x) for x in sig)
 
 class LexicalParser(object):
   core = None
