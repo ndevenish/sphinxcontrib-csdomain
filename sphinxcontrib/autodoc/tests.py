@@ -41,3 +41,8 @@ class TestAutodoc(unittest.TestCase):
   def test_skip_to(self):
     p = CoreParser("some text with a d) in the")
     self.assertEqual(p.skip_to_char(')'), "some text with a d")
+
+  def test_new_expr(self):
+    p = FileParser("var x = new []{}()something(withpar);")
+    p._parse_balanced_expression()
+    self.assertEqual(p.core.next_char, ';')

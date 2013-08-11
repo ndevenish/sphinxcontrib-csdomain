@@ -56,6 +56,10 @@ class CommaNameList(SeparatedNameList):
 class TypeName(NamedDefinition):
   arguments = []
 
+class Block(NamedDefinition):
+  def __str__(self):
+    return "{" + ";\n".join(self.parts) + "}"
+
 class FormalParameter(NamedDefinition):
   pass
 

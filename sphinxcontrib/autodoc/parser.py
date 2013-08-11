@@ -10,7 +10,7 @@ from ..types import ClassInfo
 from .core import CoreParser
 import lexical
 from .lexical import LexicalParser, TypeName, Member, \
-  FormalParameter, Statement, Attribute
+  FormalParameter, Statement, Attribute, Block
 
 def opensafe(filename, mode = 'r'):
   bytes = min(32, os.path.getsize(filename))
@@ -268,14 +268,18 @@ class FileParser(object):
 
   def _parse_statement(self):
     print "Trying to parse statement: " + self.cur_line()
-    statement = self.first_of([
-      self._parse_labeled_statement,
-      self._parse_declaration_statement,
-      self._parse_embedded_statement
-      ])
-    if statement:
-      return statement
-    raise DefinitionError("Could not read statement of any form")
+    try:
+      statement = self.first_of([
+        self._parse_labeled_statement,
+        self._parse_declaration_statement,
+        self._parse_embedded_statement
+        ])
+    except DefinitionError:
+      print "      ...Failed"
+      raise DefinitionError("Could not read statement of any form")  
+    print "      ...Succeeded"
+    return statement
+    
 
   def _parse_embedded_statement(self):
     return self.first_of([
@@ -288,7 +292,9 @@ class FileParser(object):
     self.swallow_with_ws('{')
     statements = self._parse_any(self._parse_statement)
     self.swallow_with_ws('}')
-    return statements
+    b = Block('block')
+    b.parts = statements
+    return b
   
   def _parse_empty_statement(self):
     self.swallow_with_ws(';')
@@ -331,14 +337,13 @@ class FileParser(object):
       raise DefinitionError('not a local variable declarator')
     if self.core.skip_with_ws('='):
       exp = self._parse_expression()
-      self.warn("Not properly parsing expressions")
     return i
 
   def _parse_fudged_statement(self):
     "Do a general 'statement-fudge'"
     # Try skipping to the next ;
-    contents = self.core.skip_to_any_char(';}')
-    self.swallow_with_ws(';')
+    contents = self._parse_balanced_expression()
+    self.core.skip_with_ws(';')
     # print "SKipped: " + contents
     return contents
 
@@ -357,6 +362,10 @@ class FileParser(object):
       print "Parsed {} global attributes".format(len(global_attr))
 
     names = self._parse_any_namespace_member_declarations()
+    print "Parsed compilation unit"
+    self.core.skip_ws()
+    if not self.core.eof:
+      raise DefinitionError("Finished parsing compilation unit, but not at EOF!")
     print names
 
   def _parse_namespace_declaration(self):
@@ -486,11 +495,11 @@ class FileParser(object):
     self.core.skip_with_ws('partial')
 
     # self.swallow_with_ws('class')
-    class_type = self.swallow_one_of(['class', 'struct'])
-    print "Class type: " + class_type
+    clike.class_type = self.swallow_one_of(['class', 'struct'])
+    print "Class type: " + clike.class_type
     clike.name = self.lex.parse_identifier()
-
     type_params = self.opt(self._parse_type_parameter_list)
+    clike.definitionname = "{}-declaration".format(clike.class_type)
 
     if self.core.skip_with_ws(':'):
       clike.bases = self._parse_any(self._parse_type_name, ',')
@@ -513,6 +522,7 @@ class FileParser(object):
     clike.members = self._parse_any_class_member_declarations()
     self.swallow_with_ws('}')
     self.core.skip_with_ws(";")
+    print "Parsed {} {}".format(clike.class_type, clike.name)
     return clike
 
   def _parse_type_parameter_list(self):
@@ -620,6 +630,11 @@ class FileParser(object):
 
   def _parse_method_declaration(self):
     print "Trying to parse member: " + self.cur_line()
+
+    # if self.cur_line().startswith('[NotifyProper'):
+    #   import pdb
+    #   pdb.set_trace()
+
     m = self._parse_method_header()
 
     m.body = self.opt(self._parse_block)
@@ -729,9 +744,14 @@ class FileParser(object):
     self.swallow_with_ws(':')
     to = self.swallow_one_of(['base', 'this'])
     self.swallow_with_ws('(')
-    self.core.skip_to_char(')')
+    args = self._parse_any(self._parse_expression, ",")
     self.swallow_with_ws(')')
-    return "[initialiser]"
+
+    form = ": {}({})".format(to, ", ".join(args))
+
+    # import pdb
+    # pdb.set_trace()
+    return form
 
   ## Uncategorised ####################################
 
@@ -759,7 +779,44 @@ class FileParser(object):
 
   def _parse_expression(self):
     # Complicated... skip for now
-    return self._parse_fudged_statement()
+    # print "Need to be cleverer about expression parsing: balanced etc"
+    return self._parse_balanced_expression()
+
+  def _parse_balanced_expression(self):
+    DBG = False
+    # if self.cur_line().startswith("using (var conn = new NpgsqlC"):
+    #   DBG = True
+    counts = {"{-}": 0, "(-)": 0, "[-]": 0, "-;-": 0}
+    tomatch = "()[]{};"
+    expr = ""
+    while True:
+      expr += self.core.skip_to_any_char(tomatch)
+      nextmatch = self.core.next_char
+      if DBG:
+        print "Read part expression: " + repr(expr)
+        print "  Next Character:  " + nextmatch
+
+      if not nextmatch:
+        raise RuntimeError("could not parse expression properly")
+      # Find the tracking entry corresponding to this
+      index = next(x for x in counts.iterkeys() if nextmatch in x)
+      if DBG:
+        print "  Found index: " + index
+      counts[index] -= index.index(nextmatch)-1
+      if DBG:
+        print "  " + str(counts)
+      
+      if any(x < 0 for x in counts.itervalues()) \
+        or (all(x <= 0 for x in counts.itervalues()) and nextmatch == ';'):
+        # print "Breaking expression!"
+        print "Parsed balanced expression: " + expr
+        break
+      # Attach the next character
+      expr += nextmatch
+      self.core.skip(nextmatch)
+
+    return expr
+
     # raise Exception("Not processing expressions")
 
   def _parse_any_attributes(self):

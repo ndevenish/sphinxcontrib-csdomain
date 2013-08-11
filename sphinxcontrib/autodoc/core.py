@@ -62,7 +62,7 @@ class CoreParser(object):
     return value
 
   def skip_to_any_char(self, chars):
-    self.match(re.compile('[^{}]*'.format(chars)))
+    self.match(re.compile('[^{}]*'.format(re.escape(chars))))
     value = self.matched_text
     self.skip_ws()
     return value
@@ -85,6 +85,11 @@ class CoreParser(object):
       self.last_match = match
       return True
     return False
+
+  @property
+  def next_char(self):
+    if not self.eof:
+      return self.definition[self.pos]
   
   @property
   def matched_text(self):
