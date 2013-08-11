@@ -286,6 +286,15 @@ class LexicalParser(object):
       comment = Comment(comment_val)
       comment.whitespace = self.parse_whitespace()
       return comment
+    if self.core.skip("/*"):
+      # Eat everything until the next */
+      endcomment = self.core.definition[self.core.pos:].find("*/")
+      full = self.core.definition[self.core.pos:self.core.pos+endcomment+2]
+      self.core.pos = self.core.pos + endcomment + 2
+      comment = Comment()
+      comment.parts = full.splitlines()
+      comment.whitespace = self.parse_whitespace()
+      return comment
 
     return None
 
