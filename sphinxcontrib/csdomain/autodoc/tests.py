@@ -86,13 +86,13 @@ class TestAutodoc(unittest.TestCase):
     self.assertTrue(p.core.eof)
 
   def test_whole_folder(self):
-    pattern = "/Users/xgkkp/dockets/app/Core/Utils/DBDriver.cs"
+    pattern = "/Users/xgkkp/dockets/app/Core/Utils/ExtractIcon.cs"
     for filename in glob.glob(pattern):
       print "================="
       print "Parsing " + os.path.basename(filename)
       contents = opensafe(filename).read()
       parser = FileParser(contents)
-      # parser._debug = True
+      parser._debug = True
       cu = parser.parse_file()
       summarize_space(cu)
 
