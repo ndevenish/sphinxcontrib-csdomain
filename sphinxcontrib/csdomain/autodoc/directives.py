@@ -19,6 +19,7 @@ class CSAutodocModule(Directive):
     if not os.path.isfile(path):
       raise IOError("Could not read autodoc file {}".format(path))
 
+    print "Set Autodoc path: " + path
     env.temp_data['cs:auto:module'] = path
     return []
 
