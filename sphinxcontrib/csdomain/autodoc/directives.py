@@ -4,7 +4,7 @@ from sphinx.util.compat import Directive
 import os
 from docutils import nodes
 from docutils.statemachine import ViewList
-
+from xml.etree.ElementTree import ParseError
 from .parser import FileParser, opensafe
 
 class CSAutodocModule(Directive):
@@ -23,7 +23,7 @@ class CSAutodocModule(Directive):
 
 
     rel_filename, filename = env.relfn2path(self.arguments[0])
-    print rel_filename, filename
+    # print rel_filename, filename
     
     path = filename
     if not os.path.isfile(path):
@@ -97,7 +97,16 @@ class CSAutodoc(Directive):
     # Get the documentation for this class
     if obj.documentation:
       lines.append("")
-      lines.extend(obj.documentation.parse_documentation().splitlines())
+      try:
+        parsed = obj.documentation.parse_documentation()
+        lines.extend(parsed.splitlines())
+      except ParseError as ex:
+        self.state_machine.reporter.warning(
+          "Error parsing documentation comments for {}.{}: {}. Skipping intelligent parse.".format(
+            obj.namespace, obj.name, ex.message)
+          )
+        lines.extend(obj.documentation.parts)
+      
     lines.append("")
     
     # Now, iterate through all members with documentation
@@ -122,8 +131,15 @@ class CSAutodoc(Directive):
 
     if member.documentation:
       lines.append("")
-      lines.extend(member.documentation.parse_documentation().splitlines())
-
+      try:
+        parsed = member.documentation.parse_documentation()
+        lines.extend(parsed.splitlines())
+      except ParseError as ex:
+        self.state_machine.reporter.warning(
+          "Error parsing documentation comments for {}.{}: {}. Skipping intelligent parse.".format(
+            obj.namespace, obj.name, ex.message)
+          )
+      
     full_definition = [decl] + ["    " + line for line in lines]
 
     return ViewList(full_definition)

@@ -71,6 +71,7 @@ class Comment(NamedDefinition):
     fulltext = "\n".join(stripped)
     return XmldocParser(fulltext).parse()
 
+
 class SeparatedNameList(NamedDefinition):
   def __init__(self, name, separator = " "):
     super(SeparatedNameList, self).__init__(name)
