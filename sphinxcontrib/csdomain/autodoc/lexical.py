@@ -91,7 +91,24 @@ class Block(NamedDefinition):
     return "{" + ";\n".join(self.parts) + "}"
 
 class FormalParameter(NamedDefinition):
-  pass
+  def __init__(self, name):
+    super(FormalParameter, self).__init__(name)
+    self.modifier = None
+    self.attributes = []
+    self.default = None
+
+  def __str__(self):
+    parts = []
+    if self.attributes:
+      parts.append(str(self.attributes))
+    if self.modifier:
+      parts.append(self.modifier)
+    parts.append(self.type)
+    parts.append(self.name)
+    if self.default:
+      parts.append("=")
+      parts.append(self.default)
+    return (" ".join(str(x) for x in parts))
 
 class TypeParameterList(SeparatedNameList):
   def __init__(self):
@@ -172,9 +189,26 @@ class Member(NamedDefinition):
   def signature(self):
     return repr(self)
 
+class Method(Member):
+  partial = False
+  type = False
+  def signature(self):
+    sig = []
+    sig.extend(self.attributes)
+    sig.extend(self.modifiers)
+    if self.partial:
+      sig.append("partial")
+    if self.type:
+      sig.append(self.type)
+    main_sig = str(self.name) + "(" + ", ".join(str(x) for x in self.parameters) + ")"
+    sig.append(main_sig)
+    return " ".join(str(x) for x in sig)
+
+
 class Property(Member):
   def signature(self):
     sig = []
+    sig.extend(self.attributes)
     sig.extend(self.modifiers)
     sig.append(self.type)
     sig.append(self.name)

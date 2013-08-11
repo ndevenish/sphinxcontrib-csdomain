@@ -671,7 +671,7 @@ class FileParser(object):
     return m
 
   def _parse_method_header(self):
-    m = Member('method-declaration')
+    m = Method('method-declaration')
     m.attributes = self._parse_any_attributes()
     m.modifiers = self._parse_any_method_modifiers()
     m.partial = self.core.skip_with_ws('partial')
@@ -703,11 +703,11 @@ class FileParser(object):
     # attributesopt parameter-modifieropt type identifier default-argumentopt
     p = FormalParameter('fixed-parameter')
     p.attributes = self._parse_any_attributes()
-    p.modifiers = self.opt(lambda: self.swallow_one_of(['ref', 'out', 'this']))
+    p.modifier = self.opt(lambda: self.swallow_one_of(['ref', 'out', 'this']))
     p.type = self._parse_type()
     p.name = self.lex.parse_identifier()
 
-    p.form = "{} {} {} {}".format(p.attributes, p.modifiers, p.type, p.name)
+    p.form = "{} {} {} {}".format(p.attributes, p.modifier, p.type, p.name)
     if self.core.skip_with_ws('='):
       p.default = self._parse_expression()
       p.form += " = " + p.default
@@ -751,7 +751,7 @@ class FileParser(object):
     # pdb.set_trace()
     # constructor-declarator constructor-body
 
-    m = Member('constructor-declaration')
+    m = Method('constructor-declaration')
     m.attributes = self._parse_any_attributes()
     m.modifiers = self._parse_any_modifiers(['public', 'protected', 'internal', 'private', 'extern'])
     m.name = self.lex.parse_identifier()
