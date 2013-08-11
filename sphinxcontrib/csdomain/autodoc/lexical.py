@@ -5,6 +5,8 @@ from .xmldoc import XmldocParser
 
 _identifier_re = re.compile(r'(~?\b[a-zA-Z_][a-zA-Z0-9_]*)\b')
 _doc_comment_skip_re = re.compile(r'^[\s/]*')
+_decimal_digits_re = re.compile(r'[0-9]+')
+_hex_digits_re = re.compile(r'[0-9a-fA-F]+')
 
 KEYWORDS = ("abstract", "byte", "class", "delegate", "event", 
   "fixed", "if", "internal", "new", "override", "readonly", 
@@ -25,12 +27,17 @@ class NamedDefinition(object):
   definitionname = None
   _strip = True
   form = ""
-
+  definitions = None
   def __init__(self, name, form = None):
     self.parts = []
+    self.comps = {}
     self.definitionname = name
+    self.definitions = [name]
     if form:
       self.form = form
+
+  def adddef(self, name):
+    self.definitions.add(name)
 
   def __str__(self):
     return self.form
@@ -285,6 +292,83 @@ class LexicalParser(object):
   def parse_whitespace(self):
     if self.core.skip_ws():
       return Whitespace('whitespace', self.core.matched_text)
+
+  def parse_input_element(self):
+    if self.skip_ws():
+      return Whitespace('whitespace', self.core.matched_text)
+    comment = self.parse_comment()
+    if comment:
+      return comment
+    token = self._parse_token()
+    if not token:
+      self.fail("Could not parse")
+  
+  def parse_token(self):
+    ident = self.first_of([
+      self.parse_identifier,
+      self.parse_keyword,
+      #self.parse_numeric_literal,
+      # etc etc
+      ])
+    # ident = self._parse_identifier()
+    if not ident:
+      self.fail("Could not get token from input")
+
+    token = Token(ident)
+    token.tokentype = "identifier"
+    if ident in KEYWORDS:
+      token.tokentype = "keyword"
+
+    return token
+
+  def parse_integer_literal(self):
+    state = self.core.savepos()
+    literal = NamedDefinition("integer-literal")
+    literal.adddef("decimal-integer-literal")
+    # Integer or hex
+    ishex = self.core.skip("0x")
+    if ishex:
+      self.core.backout()
+      return self.parse_hexadecimal_integer_literal()
+    
+    # Read the digits
+    if not self.core.match(_decimal_digits_re):
+      # Evidently not a decimal
+      self.core.restorepos(state)
+      return None
+    literal.comp['decimal-digits'] = self.core.matched_text
+    literal.comp['integer-type-suffix'] = self.parse_integer_type_suffix()
+    return literal
+
+  def parse_hexadecimal_integer_literal(self):
+    state = self.core.savepos()
+    literal = NamedDefinition("integer-literal")
+    literal.adddef("hexadecimal-integer-literal")
+    if not self.core.match( _hex_digits_re):
+      self.core.restorepos(state)
+      return None
+    literal.comp['hex-digits'] = self.core.matched_text
+    literal.comp['integer-type-suffix'] = self.parse_integer_type_suffix()
+    return literal
+
+  def parse_integer_type_suffix(self):
+    # integer-type-suffix
+    suffix = None
+    integer_suffix = ["U", "u", "L", "l", "UL", "Ul", "uL", "ul", "LU", "Lu", "lU", "lu"]
+    next_two = self.core.definition[self.core.pos:self.core.pos+1]
+    if next_two in integer_suffix:
+      suffix = next_two
+    elif next_two[0] in integer_suffix:
+      suffix = next_two[0]
+    if suffix:
+      self.core.skip("suffix")
+      return NamedDefinition("integer-type-suffix", suffix)
+    return None
+
+    
+      # We must have a hexadecimal on our hands
+
+
 
 def coalesce_comments(members):
   """Coalesces consecutive comments"""

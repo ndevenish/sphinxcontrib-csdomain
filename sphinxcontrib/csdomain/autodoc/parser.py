@@ -102,6 +102,7 @@ class FileParser(object):
         raise DefinitionError("Unexpected end-of-string; Expected '{}'".format(char))
 
   def swallow_word_and_ws(self, word):
+    # Skip any comments
     if not self.core.skip_word_and_ws(word):
       if not self.core.eof:
         raise DefinitionError("Unexpected token: '{}'; Expected '{}'".format(self.cur_line(), word))
@@ -818,28 +819,6 @@ class FileParser(object):
     return form
 
   ## Uncategorised ####################################
-
-  def _parser_input_element(self):
-    if self.skip_ws():
-      return WhitespaceInfo(self.matched_text)
-    comment = self._parse_comment()
-    if comment:
-      return comment
-    token = self._parse_token()
-    if not token:
-      self.fail("Could not parse")
-  
-  def _parse_token(self):
-    ident = self._parse_identifier()
-    if not ident:
-      self.fail("Could not get token from input")
-
-    token = Token(ident)
-    token.tokentype = "identifier"
-    if ident in KEYWORDS:
-      token.tokentype = "keyword"
-
-    return token
 
   def _parse_expression(self):
     # Complicated... skip for now
