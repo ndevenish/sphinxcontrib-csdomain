@@ -249,13 +249,21 @@ class FileParser(object):
     tname.nullable = self.core.skip_with_ws("?")
     return tname
 
+  def _parse_integral_type(self):
+    simple_types = ("sbyte", "byte", "short", "ushort", "int", "uint", "long", "ulong", "char", "decimal")
+    kw = self.lex.parse_identifier_or_keyword()
+    if kw in simple_types:
+      return TypeName("value-type", kw)
+    raise DefinitionError("Not an integral type")
+
   def _parse_value_type(self):
     def _simple_type():
-      simple_types = ("sbyte", "byte", "short", "ushort", "int", "uint", "long", "ulong", "char", "decimal", "bool")
-      kw = self.lex.parse_identifier_or_keyword()
-      if kw in simple_types:
-        return TypeName("value-type", kw)
-      raise DefinitionError("Not a simple type")
+      # numeric or bool
+      numt = self.opt(self._parse_integral_type)
+      if numt:
+        return numt
+      self.swallow_word_and_ws('bool')
+
 
     def _struct_type():
       # Not handling nullable - could be anywhere?
@@ -546,10 +554,6 @@ class FileParser(object):
   ## B.2.7 Classes ####################################
 
   def _parse_class_declaration_header(self):
-    # if self._debug and self.core.line_no == 271:
-    #   import pdb
-    #   pdb.set_trace()
-
     # Partly handled by prior, but be strict here
     clike = Class(None)
     
@@ -568,7 +572,10 @@ class FileParser(object):
     clike.definitionname = "{}-declaration".format(clike.class_type)
 
     if self.core.skip_with_ws(':'):
-      clike.bases = self._parse_any(self._parse_type_name, ',')
+      if clike.class_type == "enum":
+        clike.bases = [self._parse_integral_type()]
+      else:
+        clike.bases = self._parse_any(self._parse_type_name, ',')
 
     self.core.skip_ws()
 
