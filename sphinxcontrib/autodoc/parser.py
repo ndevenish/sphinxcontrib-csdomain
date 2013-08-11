@@ -377,6 +377,10 @@ class FileParser(object):
 
     self.core.skip_with_ws(";")
 
+    print "Namespace Coalescing"
+    space.members = coalesce_comments(space.members)
+    print "Namespace Post-Coalescing"
+    
     return space
 
   def _parse_qualified_identifier(self):
