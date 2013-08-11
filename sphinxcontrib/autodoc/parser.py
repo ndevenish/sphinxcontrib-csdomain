@@ -125,7 +125,6 @@ class FileParser(object):
   def cur_line(self):
     return self.core.cur_line()
 
-
   ## B.2.1 Basic Concepts #############################
 
   def _parse_namespace_name(self):
@@ -513,6 +512,10 @@ class FileParser(object):
     self.swallow_with_ws('}')
     self.core.skip_with_ws(";")
     print "Parsed {} {}".format(clike.class_type, clike.name)
+
+    print "Coalescing"
+    clike.members = coalesce_comments(clike.members)
+    print "Post-Coalescing"
     return clike
 
   def _parse_type_parameter_list(self):

@@ -1,3 +1,4 @@
+# coding: utf-8
 
 import re
 
@@ -20,11 +21,11 @@ KEYWORDS = ("abstract", "byte", "class", "delegate", "event",
 
 class NamedDefinition(object):
   definitionname = None
-  parts = []
   _strip = True
   form = ""
 
   def __init__(self, name, form = None):
+    self.parts = []
     self.definitionname = name
     if form:
       self.form = form
@@ -39,13 +40,21 @@ class Whitespace(NamedDefinition):
   def __repr__(self):
     return "<{}>".format(self.definitionname)
 
+  @property
+  def lines(self):
+    return len(self.form.splitlines())
+
 class Comment(NamedDefinition):
   definitionname = "comment"
   def __init__(self, comment):
-    self.parts.append(comment)
+    self.parts = [comment]
     self.form = "// " + comment
   def __repr__(self):
     return "<{}>".format(self.definitionname)
+  
+  @property
+  def is_documentation(self):
+    return self.parts[0].startswith("/")
 
 class SeparatedNameList(NamedDefinition):
   def __init__(self, name, separator = " "):
@@ -77,11 +86,19 @@ class TypeParameterList(SeparatedNameList):
     return "<" + self.separator.join(self.parts) + ">"
 
 class Space(NamedDefinition):
-  members = []
-  using = []
-  extern_alias = []
-  attributes = []
+  members = None
+  using = None
+  extern_alias = None
+  attributes = None
   name = None
+  documentation = None
+
+  def __init__(self, name, form=None):
+    super(Space, self).__init__(name, form)
+    self.members = []
+    self.using = []
+    self.extern_alias = []
+    self.attributes = []
 
   def __str__(self):
     if self.name:
@@ -89,7 +106,12 @@ class Space(NamedDefinition):
     return self.form
 
 class Class(Space):
-  bases = []
+  bases = None
+  
+  def __init__(self, name, form=None):
+    super(Class, self).__init__(name, form)
+    bases = []
+  
   def __str__(self):
     return self.name
 
@@ -98,10 +120,12 @@ class Statement(NamedDefinition):
 
 class Attribute(NamedDefinition):
   pass
+
 class Member(NamedDefinition):
   name = None
   attributes = []
   modifiers = []
+  documentation = None
 
 class LexicalParser(object):
   core = None
@@ -153,3 +177,36 @@ class LexicalParser(object):
   def parse_whitespace(self):
     if self.core.skip_ws():
       return Whitespace('whitespace', self.core.matched_text)
+
+def coalesce_comments(members):
+  """Coalesces consecutive comments"""
+  new_mems = []
+  prev_comment = None
+  for member in members:
+    print "  Processing " + str(member)
+    if type(member) is Comment:
+      if prev_comment:
+        print "    - Appending comment to previous"
+        assert prev_comment.parts is not member.parts
+        prev_comment.parts.extend(member.parts)
+        prev_comment.whitespace = member.whitespace
+      else:
+        print "    - Starting new comment run"
+        prev_comment = member
+    else:
+      print "    - not a comment"
+      # Not a comment. Flush any prev, then append
+      if prev_comment:
+        print "    - Flushing previous comment due to not comment"
+        if prev_comment.is_documentation:
+          print "    - Attaching comment as documentation"
+          member.documentation = prev_comment
+        # new_mems.append(prev_comment)
+          prev_comment = None
+      new_mems.append(member)
+    # Flush the prev_comment if needed
+    if prev_comment and prev_comment.whitespace.lines > 2:
+      print "    - previous Comment has more than one newline; flushing"
+      new_mems.append(prev_comment)
+      prev_comment = None
+  return new_mems
