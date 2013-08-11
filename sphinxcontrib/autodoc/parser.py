@@ -47,7 +47,7 @@ class NamespaceStack(object):
 
   def push(self, namespace):
     self._stack.append(namespace)
-    print "Switching to namespace {}".format(self.get())
+    # print "Switching to namespace {}".format(self.get())
 
   def pop(self):
     return self._stack.pop()
@@ -359,21 +359,21 @@ class FileParser(object):
     # None-or more "extern alias identifier ;"
     cu = Space("compilation-unit")
     cu.extern_alias = self._parse_any_extern_alias_directives()
-    if cu.extern_alias:
-      print "Parsed {} EADs".format(len(extern_alias))
+    # if cu.extern_alias:
+    #   print "Parsed {} EADs".format(len(extern_alias))
     cu.using = self._parse_any_using_directives()
-    print "Parsed {} using directives".format(len(cu.using))
+    # print "Parsed {} using directives".format(len(cu.using))
 
     cu.attributes = self._parse_any(self._parse_global_attribute_section)
-    if cu.attributes:
-      print "Parsed {} global attributes".format(len(cu.attributes))
+    # if cu.attributes:
+    #   print "Parsed {} global attributes".format(len(cu.attributes))
 
     cu.members = self._parse_any_namespace_member_declarations()
     self.core.skip_ws()
     if not self.core.eof:
       raise DefinitionError("Finished parsing compilation unit, but not at EOF!")
     cu.form = "{} members".format(len(cu.members))
-    print "Parsed compilation unit: " + repr(cu)
+    # print "Parsed compilation unit: " + repr(cu)
 
     return cu
 
@@ -389,16 +389,16 @@ class FileParser(object):
       self.swallow_with_ws("{")
       space.extern_alias = self._parse_any_extern_alias_directives()
       space.using = self._parse_any_using_directives()
-      print "Parsing internals of namespace: " + space.name
+      # print "Parsing internals of namespace: " + space.name
       space.members = self._parse_any_namespace_member_declarations()
-      print "   Parsed {} members".format(len(space.members))
+      # print "   Parsed {} members".format(len(space.members))
       self.swallow_with_ws("}")
 
       self.core.skip_with_ws(";")
 
-      print "Namespace Coalescing"
+      # print "Namespace Coalescing"
       space.members = coalesce_comments(space.members)
-      print "Namespace Post-Coalescing"
+      # print "Namespace Post-Coalescing"
 
       return space
     finally:
@@ -466,7 +466,7 @@ class FileParser(object):
       # print "Parsed comment: " + comment.contents
       return comment
 
-    print "Namespace member " + self.cur_line()
+    # print "Namespace member " + self.cur_line()
     return self.first_of((
       self._parse_namespace_declaration,
       self._parse_type_declaration
@@ -510,7 +510,7 @@ class FileParser(object):
 
     # self.swallow_with_ws('class')
     clike.class_type = self.swallow_one_of(['class', 'struct'])
-    print "Class type: " + clike.class_type
+    # print "Class type: " + clike.class_type
     clike.name = self.lex.parse_identifier()
     type_params = self.opt(self._parse_type_parameter_list)
     clike.definitionname = "{}-declaration".format(clike.class_type)
@@ -533,12 +533,12 @@ class FileParser(object):
     self.namespace.push(clike.name)
     try:    
       # Class body
-      print "Line: " + self.core.definition[self.core.pos:self.core.pos+30]
+      # print "Line: " + self.core.definition[self.core.pos:self.core.pos+30]
       self.swallow_with_ws('{')
       clike.members = self._parse_any_class_member_declarations()
       self.swallow_with_ws('}')
       self.core.skip_with_ws(";")
-      print "Parsed {} {}".format(clike.class_type, clike.name)
+      # print "Parsed {} {}".format(clike.class_type, clike.name)
     finally:
       self.namespace.pop()
 
@@ -627,7 +627,7 @@ class FileParser(object):
     return m
 
   def _parse_field_declaration(self):
-    print "Trying to parse field: " + self.cur_line()
+    # print "Trying to parse field: " + self.cur_line()
     m = Member("field-declaration")
     m.attributes = self._parse_any_attributes()
     valid_m = ("new", "public", "protected", "internal", "private", 
@@ -655,7 +655,7 @@ class FileParser(object):
     return name
 
   def _parse_method_declaration(self):
-    print "Trying to parse member: " + self.cur_line()
+    # print "Trying to parse member: " + self.cur_line()
 
     # if self.cur_line().startswith('[NotifyProper'):
     #   import pdb
@@ -680,7 +680,7 @@ class FileParser(object):
     self.swallow_with_ws('(')
 
     m.parameters = self.opt(self._parse_formal_parameter_list)
-    print "Parameters: " + str(m.parameters)
+    # print "Parameters: " + str(m.parameters)
     
     self.swallow_with_ws(')')
     constraints = self._parse_any_type_parameter_constraints_clauses()
@@ -715,7 +715,7 @@ class FileParser(object):
     return p  
 
   def _parse_property_declaration(self):
-    print "Trying to parse property: " + self.cur_line()
+    # print "Trying to parse property: " + self.cur_line()
     m = Member('property-declaration')
     m.attributes = self._parse_any_attributes()
     m.modifiers = self._parse_any_property_modifiers()
@@ -730,7 +730,6 @@ class FileParser(object):
     else:
       m.accessors = [acc]
     self.swallow_with_ws('}')
-    print "Parsed property"
     return m
 
   def _parse_accessor_declaration(self):
@@ -746,7 +745,7 @@ class FileParser(object):
     return m
 
   def _parse_constructor_declaration(self):
-    print "Trying to parse constructor: " + self.cur_line()
+    # print "Trying to parse constructor: " + self.cur_line()
     # import pdb
     # pdb.set_trace()
     # constructor-declarator constructor-body

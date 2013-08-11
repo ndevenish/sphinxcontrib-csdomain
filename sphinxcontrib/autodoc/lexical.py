@@ -99,6 +99,7 @@ class Space(NamedDefinition):
     self.using = []
     self.extern_alias = []
     self.attributes = []
+    self.namespace = ""
 
   def __str__(self):
     if self.name:
@@ -214,7 +215,8 @@ def coalesce_comments(members):
 def summarize_space(space, level=0):
   prefix = "  " * level
   doc = bool(space.documentation)
-  print "{}{}".format((prefix + repr(space)).ljust(50), doc)
+  info = "{}{}{}".format(prefix, "", repr(space))
+  print "{}{}".format(info.ljust(75), doc)
   if not hasattr(space, "members"):
     return
   for member in space.members:
