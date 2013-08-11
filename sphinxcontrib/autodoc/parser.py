@@ -101,8 +101,8 @@ class FileParser(object):
 
   def parse_file(self):
     cu = self._parse_compilation_unit()
-    import pdb
-    pdb.set_trace()
+    summarize_space(cu)
+    return cu
 
   def _parse_any(self, parser, separator = None):
     """Attempts to parse any number of separated structures"""

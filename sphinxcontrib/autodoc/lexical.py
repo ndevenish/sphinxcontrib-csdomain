@@ -107,7 +107,7 @@ class Space(NamedDefinition):
 
 class Class(Space):
   bases = None
-  
+
   def __init__(self, name, form=None):
     super(Class, self).__init__(name, form)
     bases = []
@@ -210,3 +210,12 @@ def coalesce_comments(members):
       new_mems.append(prev_comment)
       prev_comment = None
   return new_mems
+
+def summarize_space(space, level=0):
+  prefix = "  " * level
+  doc = bool(space.documentation)
+  print "{}{}".format((prefix + repr(space)).ljust(50), doc)
+  if not hasattr(space, "members"):
+    return
+  for member in space.members:
+    summarize_space(member, level+1)
