@@ -116,3 +116,22 @@ class CoreParser(object):
   def eof(self):
       return self.pos >= self.end
 
+  def opt(self, parser):
+    state = self.savepos()
+    try:
+      return parser()
+    except DefinitionError:
+      self.restorepos(state)
+      return None
+
+  def first_of(self, parsers, msg=None):
+    for parser in parsers:
+      val = self.opt(parser)
+      if val:
+        return val
+    if msg:
+      raise DefinitionError(msg)
+    else:
+      raise DefinitionError("Could not resolve any parser")
+
+

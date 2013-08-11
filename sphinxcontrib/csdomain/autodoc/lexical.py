@@ -294,17 +294,26 @@ class LexicalParser(object):
       return Whitespace('whitespace', self.core.matched_text)
 
   def parse_input_element(self):
-    if self.skip_ws():
-      return Whitespace('whitespace', self.core.matched_text)
+    whitespace = self.parse_whitespace()
+    if whitespace:
+      return whitespace
     comment = self.parse_comment()
     if comment:
       return comment
-    token = self._parse_token()
+    token = self.parse_token()
     if not token:
       self.fail("Could not parse")
+    return token
   
+  def parse_next_token(self):
+    """Parses input elements until the next token is returned"""
+    elem = self.parse_input_element()
+    while type(elem) in (Whitespace, Comment):
+      elem = self.parse_input_element()
+    return elem
+
   def parse_token(self):
-    ident = self.first_of([
+    ident = self.core.first_of([
       self.parse_identifier,
       self.parse_keyword,
       #self.parse_numeric_literal,
@@ -314,12 +323,7 @@ class LexicalParser(object):
     if not ident:
       self.fail("Could not get token from input")
 
-    token = Token(ident)
-    token.tokentype = "identifier"
-    if ident in KEYWORDS:
-      token.tokentype = "keyword"
-
-    return token
+    return ident
 
   def parse_integer_literal(self):
     state = self.core.savepos()

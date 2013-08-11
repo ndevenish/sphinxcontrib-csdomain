@@ -68,30 +68,15 @@ class FileParser(object):
     self.core = CoreParser(definition)
     self.lex = LexicalParser(self.core)
     self.namespace = NamespaceStack()
+    self.opt =  self.core.opt
+    self.first_of = self.core.first_of
+
 
   def parse_file(self):
     cu = self._parse_compilation_unit()
     # summarize_space(cu)
     # print "Classes: " + str(list(cu.iter_classes()))
     return cu
-
-  def opt(self, parser):
-    state = self.core.savepos()
-    try:
-      return parser()
-    except DefinitionError:
-      self.core.restorepos(state)
-      return None
-
-  def first_of(self, parsers, msg=None):
-    for parser in parsers:
-      val = self.opt(parser)
-      if val:
-        return val
-    if msg:
-      raise DefinitionError(msg)
-    else:
-      raise DefinitionError("Could not resolve any parser")
 
   def swallow_with_ws(self, char):
     """Skips a character and any trailing whitespace, but raises DefinitionError if not found"""
@@ -103,11 +88,15 @@ class FileParser(object):
 
   def swallow_word_and_ws(self, word):
     # Skip any comments
-    if not self.core.skip_word_and_ws(word):
-      if not self.core.eof:
-        raise DefinitionError("Unexpected token: '{}'; Expected '{}'".format(self.cur_line(), word))
-      else:
-        raise DefinitionError("Unexpected end-of-string; Expected '{}'".format(word))
+    state = self.core.savepos()
+    nexttok = self.lex.parse_next_token()
+    if nexttok == word:
+      return
+    self.core.restorepos(state)
+    if not self.core.eof:
+      raise DefinitionError("Unexpected token: '{}'; Expected '{}'".format(self.cur_line(), word))
+    else:
+      raise DefinitionError("Unexpected end-of-string; Expected '{}'".format(word))
 
   def swallow_one_of(self, words):
     for word in words:
@@ -447,8 +436,9 @@ class FileParser(object):
 
   def _parse_using_directive(self):
     """Attempt to parse both types of using directive"""
-    # import pdb
-    # pdb.set_trace()
+    # if self._debug:
+    #   import pdb
+    #   pdb.set_trace()
 
     state = self.savepos()
     try:
