@@ -722,11 +722,6 @@ class FileParser(object):
 
   def _parse_method_declaration(self):
     # print "Trying to parse member: " + self.cur_line()
-
-    if self.core.line_no == 127 and self._debug:
-      import pdb
-      pdb.set_trace()
-
     self._parsing = "method-declaration"
     m = self._parse_method_header()
 
@@ -812,6 +807,10 @@ class FileParser(object):
         m.setter = acc
 
   def _parse_event_declaration(self):
+    if self.core.line_no == 611 and self._debug:
+      import pdb
+      pdb.set_trace()
+
     self._parsing = "event-declaration"
     ev_mods = ["new", "public", "protected", "internal", "private",
               "static", "virtual", "sealed", "override", "abstract",
@@ -824,14 +823,14 @@ class FileParser(object):
     # Two ways from here: variable-declarators and ;,
     # or member-name then {
     vardec = self._parse_variable_declarators()
-    if len(vardec) == 1 and self.core.skip_with_ws("{"):
-      # We are definitely type-2
+    if self.core.skip_with_ws(';'):
+      # We are definitely type-1
+      m.name = vardec
+    else:
+      #probably be type 2
       print "Not handling type-2 event declarations atm"
       raise DefinitionError()
-    else:
-      # Type 1
-      self.swallow_with_ws(';')
-      m.name = vardec
+
     return m
 
   def _parse_indexer_declaration(self):
