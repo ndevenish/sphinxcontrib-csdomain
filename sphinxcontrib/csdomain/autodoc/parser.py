@@ -822,16 +822,38 @@ class FileParser(object):
     m.type = self._parse_type()
     # Two ways from here: variable-declarators and ;,
     # or member-name then {
+    state = self.core.savepos()
     vardec = self._parse_variable_declarators()
     if self.core.skip_with_ws(';'):
       # We are definitely type-1
       m.name = vardec
     else:
       #probably be type 2
-      print "Not handling type-2 event declarations atm"
-      raise DefinitionError()
+      self.core.restorepos(state)
+      memb = self._parse_namespace_or_type_name()
+      self.swallow_with_ws('{')
+      m.accessors = []
+      m.accessors.append(self._parse_event_accessor_declaration())
+      acc = self.opt(self._parse_event_accessor_declaration)
+      if acc:
+        m.accessors.append(acc)
+      # Event-accessor-declarations
+
+      self.swallow_with_ws('}')
+      
+      # print "Not handling type-2 event declarations atm"
+      # raise DefinitionError()
 
     return m
+
+  def _parse_event_accessor_declaration(self):
+    m = Member("Event-accessor-declaration")
+    m.attributes = self._parse_any_attributes()
+    m.accessor = self.swallow_one_of(['add', 'remove'])
+    m.contents = self._parse_block()
+    return m
+#   add-accessor-declaration: attributesopt add block
+# remove-accessor-declaration: attributesopt remove block
 
   def _parse_indexer_declaration(self):
     self._parsing = "indexer-declaration"

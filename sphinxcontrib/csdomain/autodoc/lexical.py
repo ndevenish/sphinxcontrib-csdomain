@@ -33,6 +33,7 @@ class NamedDefinition(object):
     self.comps = {}
     self.definitionname = name
     self.definitions = [name]
+    self.documentation = None
     if form:
       self.form = form
 
