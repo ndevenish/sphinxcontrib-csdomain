@@ -546,6 +546,10 @@ class FileParser(object):
   ## B.2.7 Classes ####################################
 
   def _parse_class_declaration_header(self):
+    # if self._debug and self.core.line_no == 271:
+    #   import pdb
+    #   pdb.set_trace()
+
     # Partly handled by prior, but be strict here
     clike = Class(None)
     
@@ -645,12 +649,12 @@ class FileParser(object):
     return constraints
 
   def _parse_primary_constraint(self):
-    typ = self._parse_class_type()
+    typ = self.opt(self._parse_class_type)
     if typ:
       return typ
-    if self.skip_word_and_ws("class"):
+    if self.core.skip_with_ws("class"):
       return "class"
-    if self.skip_word_and_ws("struct"):
+    if self.core.skip_with_ws("struct"):
       return "struct"
 
   def _parse_any_class_member_declarations(self):
