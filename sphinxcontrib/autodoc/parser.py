@@ -9,8 +9,7 @@ from ..parser import DefinitionParser, DefinitionError
 from ..types import ClassInfo
 from .core import CoreParser
 import lexical
-from .lexical import LexicalParser, TypeName, Member, \
-  FormalParameter, Statement, Attribute, Block
+from .lexical import *
 
 def opensafe(filename, mode = 'r'):
   bytes = min(32, os.path.getsize(filename))
@@ -41,19 +40,6 @@ class StatementInfo(BasicFormInfo):
   def __init__(self, st, contents):
     self.contents = contents
     self.statement_type = st
-
-class NamespaceInfo(object):
-  name = None
-  members = []
-  using = []
-  extern_alias = []
-  attributes = []
-
-  def __init__(self, name):
-    self.name = name
-
-class ClassInfo(NamespaceInfo):
-  bases = []
 
 class FileParser(object):
   core = None
@@ -114,7 +100,9 @@ class FileParser(object):
     self.core.restorepos(state)
 
   def parse_file(self):
-    return self._parse_compilation_unit()
+    cu = self._parse_compilation_unit()
+    import pdb
+    pdb.set_trace()
 
   def _parse_any(self, parser, separator = None):
     """Attempts to parse any number of separated structures"""
@@ -351,28 +339,31 @@ class FileParser(object):
 
   def _parse_compilation_unit(self):
     # None-or more "extern alias identifier ;"
-    extern_alias = self._parse_any_extern_alias_directives()
-    if extern_alias:
+    cu = Space("compilation-unit")
+    cu.extern_alias = self._parse_any_extern_alias_directives()
+    if cu.extern_alias:
       print "Parsed {} EADs".format(len(extern_alias))
-    using_directives = self._parse_any_using_directives()
-    print "Parsed {} using directives".format(len(using_directives))
+    cu.using = self._parse_any_using_directives()
+    print "Parsed {} using directives".format(len(cu.using))
 
-    global_attr = self._parse_any(self._parse_global_attribute_section)
-    if global_attr:
-      print "Parsed {} global attributes".format(len(global_attr))
+    cu.attributes = self._parse_any(self._parse_global_attribute_section)
+    if cu.attributes:
+      print "Parsed {} global attributes".format(len(cu.attributes))
 
-    names = self._parse_any_namespace_member_declarations()
-    print "Parsed compilation unit"
+    cu.members = self._parse_any_namespace_member_declarations()
     self.core.skip_ws()
     if not self.core.eof:
       raise DefinitionError("Finished parsing compilation unit, but not at EOF!")
-    print names
+    cu.form = "{} members".format(len(cu.members))
+    print "Parsed compilation unit: " + repr(cu)
+
+    return cu
 
   def _parse_namespace_declaration(self):
     self.swallow_word_and_ws('namespace')
-    identifier = self._parse_qualified_identifier()
-
-    space = NamespaceInfo(identifier)
+    
+    space = Space('namespace-declaration')
+    space.name = self._parse_qualified_identifier()
 
     # Parse namespace body
     # { extern-alias-directivesopt using-directivesopt 
@@ -488,7 +479,7 @@ class FileParser(object):
 
   def _parse_class_declaration_header(self):
     # Partly handled by prior, but be strict here
-    clike = ClassInfo(None)
+    clike = Class(None)
     
     clike.attributes = self._parse_any_attributes()
     clike.modifiers = self._parse_any_class_modifiers()
@@ -575,7 +566,7 @@ class FileParser(object):
 
   def _parse_class_member_declaration(self):
     # constant-declaration field-declaration method-declaration property-declaration event-declaration indexer-declaration operator-declaration constructor-declaration destructor-declaration static-constructor-declaration type-declaration
-    return self.first_of([
+    member = self.first_of([
       self.lex.parse_comment,
       self._parse_constant_declaration,
       self._parse_field_declaration,
@@ -585,6 +576,9 @@ class FileParser(object):
       #indexer,
       self._parse_constructor_declaration,
     ])
+    if hasattr(member, "name"):
+      member.form = str(member.name)
+    return member
 
   def _parse_constant_declaration(self):
     m = Member("constant-declaration")
@@ -809,7 +803,8 @@ class FileParser(object):
       if any(x < 0 for x in counts.itervalues()) \
         or (all(x <= 0 for x in counts.itervalues()) and nextmatch == ';'):
         # print "Breaking expression!"
-        print "Parsed balanced expression: " + expr
+        if DBG:
+          print "Parsed balanced expression: " + expr
         break
       # Attach the next character
       expr += nextmatch

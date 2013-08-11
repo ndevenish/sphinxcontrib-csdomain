@@ -40,6 +40,8 @@ class Comment(NamedDefinition):
   def __init__(self, comment):
     self.parts.append(comment)
     self.form = "// " + comment
+  def __repr__(self):
+    return "<{}>".format(self.definitionname)
 
 class SeparatedNameList(NamedDefinition):
   def __init__(self, name, separator = " "):
@@ -69,6 +71,23 @@ class TypeParameterList(SeparatedNameList):
 
   def __str__(self):
     return "<" + self.separator.join(self.parts) + ">"
+
+class Space(NamedDefinition):
+  members = []
+  using = []
+  extern_alias = []
+  attributes = []
+  name = None
+
+  def __str__(self):
+    if self.name:
+      return self.name
+    return self.form
+
+class Class(Space):
+  bases = []
+  def __str__(self):
+    return self.name
 
 class Statement(NamedDefinition):
   pass
