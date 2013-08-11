@@ -656,7 +656,8 @@ class FileParser(object):
       self._parse_method_declaration,
       self._parse_property_declaration,
       self._parse_event_declaration,
-      #indexer,
+      self._parse_indexer_declaration,
+      #operator,
       self._parse_constructor_declaration,
       self._parse_type_declaration,
     ])
@@ -779,6 +780,11 @@ class FileParser(object):
     m.type = self._parse_type()
     m.name = self._parse_type_name()
     self.swallow_with_ws('{')
+    self._parse_accessor_declarations(m)
+    self.swallow_with_ws('}')
+    return m
+
+  def _parse_accessor_declarations(self, m):
     # Accessor declarations
     acc = self._parse_accessor_declaration()
     if acc.accessor == "get":
@@ -792,9 +798,6 @@ class FileParser(object):
         m.getter = acc
       else:
         m.setter = acc
-
-    self.swallow_with_ws('}')
-    return m
 
   def _parse_event_declaration(self):
     self._parsing = "event-declaration"
@@ -819,8 +822,29 @@ class FileParser(object):
       m.name = vardec
     return m
 
+  def _parse_indexer_declaration(self):
+    self._parsing = "indexer-declaration"
+    m = Member("indexer-declaration")
+    m.attributes = self._parse_any_attributes()
+    mods = ["new", "public", "protected", "internal", "private", "virtual", "sealed", "override", "abstract", "extern"]
+    m.modifiers = self._parse_any_modifiers(mods)
 
+    # indexer-declarator:
+    #type this [ formal-parameter-list ]
+    #type interface-type . this [ formal-parameter-list ]
+    m.type = self._parse_type()
+    iface = self.opt(self._parse_interface_type)
+    if iface:
+      self.swallow_with_ws('.')
+    self.swallow_word_and_ws('this')
+    self.swallow_with_ws('[')
+    m.parameters = self._parse_formal_parameter_list()
+    self.swallow_with_ws(']')
 
+    self.swallow_with_ws('{')
+    self._parse_accessor_declarations(m)
+    self.swallow_with_ws('}')
+    return m
 
   def _parse_accessor_declaration(self):
     #attributesopt accessor-modifieropt get accessor-body

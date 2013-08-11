@@ -272,7 +272,7 @@ class LexicalParser(object):
     if not ident:
       return None
     if not ident.startswith("@"):
-      if ident[1:] in KEYWORDS:
+      if ident in KEYWORDS:
         self.core.restorepos(state)
         return None
     return ident
