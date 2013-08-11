@@ -19,7 +19,10 @@ class DefinitionError(Exception):
 
 class DefinitionParser(object):
   def __init__(self, definition):
-    self.definition = definition.strip()
+    if definition:
+      self.definition = definition.strip()
+    else:
+      self.definition = ""
     self.pos = 0
     self.end = len(self.definition)
     self.last_match = None
@@ -96,7 +99,10 @@ class DefinitionParser(object):
 
   @staticmethod
   def ParseNamespace(name):
-    return DefinitionParser(name)._parse_namespace_name()
+    try:
+      return DefinitionParser(name)._parse_namespace_name()
+    except DefinitionError:
+      return None
 
 
   def _parse_type_parameter_list(self):

@@ -8,3 +8,5 @@ instance :cs:class:`ViewModel`, or the interface :cs:interface:`IVisibleModelCla
 ..  cs:autodocmodule:: /Users/xgkkp/dockets/app/Core/Utils/DBPreflight.cs
 
 ..  cs:autodoc:: LoginDetails
+
+..  cs:autodoc:: DBPreflight
