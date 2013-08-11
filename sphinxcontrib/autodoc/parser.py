@@ -41,9 +41,32 @@ class StatementInfo(BasicFormInfo):
     self.contents = contents
     self.statement_type = st
 
+class NamespaceStack(object):
+  def __init__(self):
+    self._stack = []
+
+  def push(self, namespace):
+    self._stack.append(namespace)
+    print "Switching to namespace {}".format(self.get())
+
+  def pop(self):
+    return self._stack.pop()
+
+  def get(self):
+    """Return the current namespace state"""
+    ns = SeparatedNameList('namespace-or-type-name', '.')
+    ns.parts = self._stack[:]
+    return ns
+
 class FileParser(object):
   core = None
   lex = None
+  namespace = None
+
+  def __init__(self, definition):
+    self.core = CoreParser(definition)
+    self.lex = LexicalParser(self.core)
+    self.namespace = NamespaceStack()
 
   def opt(self, parser):
     state = self.core.savepos()
@@ -83,10 +106,6 @@ class FileParser(object):
       if self.core.skip_word_and_ws(word):
         return word
     raise DefinitionError("Could not read any of " + ", ".join(words))
-
-  def __init__(self, definition):
-    self.core = CoreParser(definition)
-    self.lex = LexicalParser(self.core)
 
   def warn(self, msg):
     self.core.warn(msg)
@@ -254,7 +273,7 @@ class FileParser(object):
   ## B.2.5 Statements #################################
 
   def _parse_statement(self):
-    print "Trying to parse statement: " + self.cur_line()
+    # print "Trying to parse statement: " + self.cur_line()
     try:
       statement = self.first_of([
         self._parse_labeled_statement,
@@ -262,9 +281,9 @@ class FileParser(object):
         self._parse_embedded_statement
         ])
     except DefinitionError:
-      print "      ...Failed"
+      # print "      ...Failed"
       raise DefinitionError("Could not read statement of any form")  
-    print "      ...Succeeded"
+    # print "      ...Succeeded"
     return statement
     
 
@@ -362,26 +381,28 @@ class FileParser(object):
     self.swallow_word_and_ws('namespace')
     
     space = Space('namespace-declaration')
+    space.namespace = self.namespace.get()
     space.name = self._parse_qualified_identifier()
+    self.namespace.push(space.name)
+    try:
+      # Parse namespace body
+      self.swallow_with_ws("{")
+      space.extern_alias = self._parse_any_extern_alias_directives()
+      space.using = self._parse_any_using_directives()
+      print "Parsing internals of namespace: " + space.name
+      space.members = self._parse_any_namespace_member_declarations()
+      print "   Parsed {} members".format(len(space.members))
+      self.swallow_with_ws("}")
 
-    # Parse namespace body
-    # { extern-alias-directivesopt using-directivesopt 
-    # namespace-member-declarationsopt }
-    self.swallow_with_ws("{")
-    space.extern_alias = self._parse_any_extern_alias_directives()
-    space.using = self._parse_any_using_directives()
-    print "Parsing internals of namespace: " + space.name
-    space.members = self._parse_any_namespace_member_declarations()
-    print "   Parsed {} members".format(len(space.members))
-    self.swallow_with_ws("}")
+      self.core.skip_with_ws(";")
 
-    self.core.skip_with_ws(";")
+      print "Namespace Coalescing"
+      space.members = coalesce_comments(space.members)
+      print "Namespace Post-Coalescing"
 
-    print "Namespace Coalescing"
-    space.members = coalesce_comments(space.members)
-    print "Namespace Post-Coalescing"
-    
-    return space
+      return space
+    finally:
+      self.namespace.pop()
 
   def _parse_qualified_identifier(self):
     items = self._parse_any(self.lex.parse_identifier, ".")
@@ -508,18 +529,22 @@ class FileParser(object):
     clike = self._parse_class_declaration_header()
     self.core.skip_ws()
 
+    clike.namespace = self.namespace.get()
+    self.namespace.push(clike.name)
+    try:    
+      # Class body
+      print "Line: " + self.core.definition[self.core.pos:self.core.pos+30]
+      self.swallow_with_ws('{')
+      clike.members = self._parse_any_class_member_declarations()
+      self.swallow_with_ws('}')
+      self.core.skip_with_ws(";")
+      print "Parsed {} {}".format(clike.class_type, clike.name)
+    finally:
+      self.namespace.pop()
 
-    # Class body
-    print "Line: " + self.core.definition[self.core.pos:self.core.pos+30]
-    self.swallow_with_ws('{')
-    clike.members = self._parse_any_class_member_declarations()
-    self.swallow_with_ws('}')
-    self.core.skip_with_ws(";")
-    print "Parsed {} {}".format(clike.class_type, clike.name)
-
-    print "Coalescing"
+    # print "Coalescing"
     clike.members = coalesce_comments(clike.members)
-    print "Post-Coalescing"
+    # print "Post-Coalescing"
     return clike
 
   def _parse_type_parameter_list(self):
@@ -582,6 +607,7 @@ class FileParser(object):
       #indexer,
       self._parse_constructor_declaration,
     ])
+    member.namespace = self.namespace.get()
     if hasattr(member, "name"):
       member.form = str(member.name)
     return member

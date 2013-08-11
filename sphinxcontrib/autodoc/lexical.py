@@ -183,30 +183,30 @@ def coalesce_comments(members):
   new_mems = []
   prev_comment = None
   for member in members:
-    print "  Processing " + str(member)
+    # print "  Processing " + str(member)
     if type(member) is Comment:
       if prev_comment:
-        print "    - Appending comment to previous"
+        # print "    - Appending comment to previous"
         assert prev_comment.parts is not member.parts
         prev_comment.parts.extend(member.parts)
         prev_comment.whitespace = member.whitespace
       else:
-        print "    - Starting new comment run"
+        # print "    - Starting new comment run"
         prev_comment = member
     else:
-      print "    - not a comment"
+      # print "    - not a comment"
       # Not a comment. Flush any prev, then append
       if prev_comment:
-        print "    - Flushing previous comment due to not comment"
+        # print "    - Flushing previous comment due to not comment"
         if prev_comment.is_documentation:
-          print "    - Attaching comment as documentation"
+          # print "    - Attaching comment as documentation"
           member.documentation = prev_comment
         # new_mems.append(prev_comment)
           prev_comment = None
       new_mems.append(member)
     # Flush the prev_comment if needed
     if prev_comment and prev_comment.whitespace.lines > 2:
-      print "    - previous Comment has more than one newline; flushing"
+      # print "    - previous Comment has more than one newline; flushing"
       new_mems.append(prev_comment)
       prev_comment = None
   return new_mems
