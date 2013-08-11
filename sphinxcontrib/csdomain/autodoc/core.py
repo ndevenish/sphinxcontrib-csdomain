@@ -1,4 +1,4 @@
-
+# coding: utf-8
 from ..parser import DefinitionError
 import re
 
@@ -34,6 +34,15 @@ class CoreParser(object):
     if number < 0:
       return self.get_line(self.line_no)
     return self.definition.splitlines()[number-1]
+
+  def current_line_start_pos(self):
+    """Returns the positional index of the start of the current line"""
+    # Walk backwards until at 0 or start of line
+    spos = self.pos
+    while spos >= 0:
+      if _newline_re.match(self.definition[spos]):
+        return spos+1
+      spos -= 1
 
   def warn(self, message):
     print message

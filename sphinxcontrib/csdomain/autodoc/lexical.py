@@ -298,6 +298,22 @@ class LexicalParser(object):
 
     return None
 
+  def parse_pp_directive(self):
+    # make sure we are at the beginning of the line
+    state = self.core.savepos()
+    if not self.core.skip_with_ws("#"):
+      return None
+    self.core.backout()
+
+    # Verified the #, now verify position
+    start_pos = self.core.current_line_start_pos()
+    if not self.core.definition[start_pos:self.core.pos].strip() == "":
+      return None
+    self.core.skip_with_ws("#")
+    directive = "#" + self.core.skip_to_eol() 
+    self.core.skip_ws()
+    return NamedDefinition("directive-declaration", directive)
+
   def parse_whitespace(self):
     if self.core.skip_ws():
       return Whitespace('whitespace', self.core.matched_text)

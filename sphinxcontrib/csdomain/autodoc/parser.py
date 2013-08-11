@@ -547,6 +547,10 @@ class FileParser(object):
     clike.namespace = self.namespace.get()
     self.namespace.push(clike.name)
     try:    
+      # if self._debug and self.core.line_no >= 40:
+      #   import pdb
+      #   pdb.set_trace()
+      
       # Class body
       # print "Line: " + self.core.definition[self.core.pos:self.core.pos+30]
       self.swallow_with_ws('{')
@@ -624,6 +628,7 @@ class FileParser(object):
     # constant-declaration field-declaration method-declaration property-declaration event-declaration indexer-declaration operator-declaration constructor-declaration destructor-declaration static-constructor-declaration type-declaration
     member = self.first_of([
       self.lex.parse_comment,
+      self.lex.parse_pp_directive,
       self._parse_constant_declaration,
       self._parse_field_declaration,
       self._parse_method_declaration,
