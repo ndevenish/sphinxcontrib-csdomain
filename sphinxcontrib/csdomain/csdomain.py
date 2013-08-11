@@ -455,6 +455,3 @@ class CSharpDomain(Domain):
     for fullname, (fn, _, _) in self.data['objects'].items():
       if fn == docname:
         del self.data['objects'][fullname]
-
-def setup(app):
-  app.add_domain(CSharpDomain)
