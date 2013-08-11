@@ -60,3 +60,11 @@ class TestAutodoc(unittest.TestCase):
     c.parts = doc
     self.assertTrue(c.is_documentation)
     doc = c.parse_documentation()
+
+  def test_another_read(self):
+    filename = "/Users/xgkkp/dockets/app/Core/Utils/DB.cs"
+    contents = opensafe(filename).read()
+    parser = FileParser(contents)
+    # parser.parse_file()
+    cu = parser.parse_file()
+    summarize_space(cu)

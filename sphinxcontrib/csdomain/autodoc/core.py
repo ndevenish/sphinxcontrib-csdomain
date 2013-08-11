@@ -26,6 +26,15 @@ class CoreParser(object):
     self.backout()
     return value
 
+  @property
+  def line_no(self):
+    return len(_newline_re.findall(self.definition[:self.pos]))+1
+
+  def get_line(self, number= -1):
+    if number < 0:
+      return self.get_line(self.line_no)
+    return self.definition.splitlines()[number-1]
+
   def warn(self, message):
     print message
 

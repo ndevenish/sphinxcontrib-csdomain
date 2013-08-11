@@ -372,7 +372,8 @@ class FileParser(object):
     cu.members = self._parse_any_namespace_member_declarations()
     self.core.skip_ws()
     if not self.core.eof:
-      raise DefinitionError("Finished parsing compilation unit, but not at EOF!")
+      message = "Finished parsing compilation unit, but not at EOF! At line {}: {}".format(self.core.line_no, self.core.get_line())
+      raise DefinitionError(message)
     cu.form = "{} members".format(len(cu.members))
     # print "Parsed compilation unit: " + repr(cu)
 
