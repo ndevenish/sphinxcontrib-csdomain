@@ -121,6 +121,7 @@ class FileParser(object):
   def parse_file(self):
     cu = self._parse_compilation_unit()
     summarize_space(cu)
+    print "Classes: " + str(list(cu.iter_classes()))
     return cu
 
   def _parse_any(self, parser, separator = None):

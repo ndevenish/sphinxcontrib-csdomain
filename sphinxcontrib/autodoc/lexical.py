@@ -106,6 +106,15 @@ class Space(NamedDefinition):
       return self.name
     return self.form
 
+  def iter_classes(self):
+    for member in self.members:
+      print "Checking " + repr(member)
+      if type(member) is Class:
+        yield member
+      if hasattr(member, "iter_classes"):
+        for x in member.iter_classes():
+          yield x
+
 class Class(Space):
   bases = None
 
