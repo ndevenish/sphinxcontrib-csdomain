@@ -73,8 +73,9 @@ class CSAutodoc(Directive):
 
   def rest_for_class(self, obj):
     decl = "..  cs:class:: " + obj.signature()
-
     lines = []
+    if obj.namespace:
+      lines.append(":namespace: " + str(obj.namespace))
     # Get the documentation for this class
     if obj.documentation:
       lines.append("")
@@ -98,6 +99,9 @@ class CSAutodoc(Directive):
     decl = "..  cs:member:: " + member.signature()
 
     lines = []
+    if member.namespace:
+      lines.append(":namespace: " + str(member.namespace))
+
     if member.documentation:
       lines.append("")
       lines.extend(member.documentation.parse_documentation().splitlines())
