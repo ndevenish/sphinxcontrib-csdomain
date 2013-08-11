@@ -162,7 +162,7 @@ class CSClassObject(CSObject):
     clike = parser.parse_classlike()
 
     # Use the current namespace to build a fully qualified name
-    curr_namespace = self.resolve_current_namespace()
+    curr_namespace = DefinitionParser.ParseNamespace(self.resolve_current_namespace())
     clike._full_name.merge_onto(curr_namespace)
     # print "Fully Qualified Class name: " + clike._full_name.fqn()
 

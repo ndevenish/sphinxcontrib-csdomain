@@ -132,8 +132,6 @@ class TypeInfo(object):
     """Merges the existing typeinfo onto another namespace."""
     if not namespace:
       return
-    if not type(namespace) == TypeInfo:
-      namespace = TypeInfo.FromNamespace(namespace)
     if not self.fqn().startswith(namespace.fqn()):
       self.deepest_namespace()._namespace = namespace
 
