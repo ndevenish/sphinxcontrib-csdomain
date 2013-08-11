@@ -69,9 +69,19 @@ class FileParser(object):
     self.lex = LexicalParser(self.core)
     self.namespace = NamespaceStack()
     self.opt =  self.core.opt
-    self.first_of = self.core.first_of
     self._parsing = None
 
+  def first_of(self, parsers, msg=None):
+    for parser in parsers:
+      if self._debug:
+        print "Trying " + str(parser)
+      val = self.opt(parser)
+      if val:
+        return val
+    if msg:
+      raise DefinitionError(msg)
+    else:
+      raise DefinitionError("Could not resolve any parser")
 
   def parse_file(self):
     cu = self._parse_compilation_unit()
@@ -267,7 +277,7 @@ class FileParser(object):
       return cn
     kw = self.lex.parse_identifier_or_keyword()
     if kw in ("object", "dynamic", "string"):
-      return kw
+      return TypeName("class-type", kw)
     raise DefinitionError("Not a class type")
 
   def _parse_delegate_type(self):

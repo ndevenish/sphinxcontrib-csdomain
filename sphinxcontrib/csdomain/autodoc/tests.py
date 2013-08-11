@@ -93,7 +93,7 @@ class TestAutodoc(unittest.TestCase):
       print "Parsing " + os.path.basename(filename)
       contents = opensafe(filename).read()
       parser = FileParser(contents)
-      parser._debug = True
+      # parser._debug = True
       cu = parser.parse_file()
       summarize_space(cu)
 
