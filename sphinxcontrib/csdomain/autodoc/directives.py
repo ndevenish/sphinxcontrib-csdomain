@@ -55,7 +55,6 @@ class CSAutodoc(Directive):
       print "ERROR: could not find class " + todoc
 
     obj = potentials[0]
-    documentation = obj.documentation.parse_documentation()
     # print obj.signature()
     # print documentation
 

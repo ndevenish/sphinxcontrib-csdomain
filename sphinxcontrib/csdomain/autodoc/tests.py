@@ -2,7 +2,7 @@
 
 import unittest
 from .parser import FileParser, opensafe
-from .lexical import Comment
+from .lexical import Comment, summarize_space
 from .core import CoreParser
 
 SAMPLE = "/Users/xgkkp/dockets/app/Core/Utils/DBPreflight.cs"

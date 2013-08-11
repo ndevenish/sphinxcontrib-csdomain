@@ -265,7 +265,7 @@ class FileParser(object):
   def _parse_type_argument_list(self):
     #type-argument-list: < type... >
     self.swallow_with_ws('<')
-    args = self._parse_any(_self._parse_type, ",")
+    args = self._parse_any(self._parse_type, ",")
     if not args:
       raise DefinitionError("No type argument params")
     self.swallow_with_ws('>')
@@ -407,6 +407,7 @@ class FileParser(object):
     except:
       if self._debug:
         print "Exception parsing namespace on line {}: {}".format(self.core.line_no, self.core.get_line())
+      raise
     finally:
       self.namespace.pop()
 
@@ -515,7 +516,10 @@ class FileParser(object):
     self.core.skip_with_ws('partial')
 
     # self.swallow_with_ws('class')
-    clike.class_type = self.swallow_one_of(['class', 'struct'])
+    clike.class_type = self.swallow_one_of(['class', 'struct', 'interface'])
+    # Technically, should now check that the modifiers was a subset
+    # of new, public, protected, internal, private
+
     # print "Class type: " + clike.class_type
     clike.name = self.lex.parse_identifier()
     type_params = self.opt(self._parse_type_parameter_list)
@@ -722,6 +726,7 @@ class FileParser(object):
 
   def _parse_property_declaration(self):
     # print "Trying to parse property: " + self.cur_line()
+
     m = Property('property-declaration')
     m.attributes = self._parse_any_attributes()
     m.modifiers = self._parse_any_property_modifiers()
@@ -744,7 +749,7 @@ class FileParser(object):
     m.attributes = self._parse_any_attributes()
     m.modifiers = self._parse_any_modifiers(['protected', 'internal', 'private'])
     m.accessor = self.swallow_one_of(['get', 'set'])
-    m.body = self._parse_block()
+    m.body = self.opt(self._parse_block)
     if not m.body:
       self.swallow_with_ws(';')
     m.definitionname = '{}-accessor-declaration'.format(m.accessor)
