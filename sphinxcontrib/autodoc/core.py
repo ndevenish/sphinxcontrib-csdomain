@@ -2,6 +2,7 @@
 from ..parser import DefinitionError
 import re
 
+_newline_re = re.compile(r'[\n\r]')
 _not_newline_re = re.compile(r'[^\n\r]*')
 _whitespace_re = re.compile(r'\s+(?u)')
 
@@ -72,6 +73,12 @@ class CoreParser(object):
     value = self.matched_text
     self.skip_ws()
     return value  
+
+  def skip_single_eol(self):
+    if not self.match(_not_newline_re):
+      return None
+    return self.matched_text
+    
 
   def backout(self):
     """Resets the last match"""

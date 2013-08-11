@@ -474,7 +474,6 @@ class FileParser(object):
     qal.form = "{} :: {} {}"
     return qal
 
-
   ## B.2.7 Classes ####################################
 
   def _parse_class_declaration_header(self):

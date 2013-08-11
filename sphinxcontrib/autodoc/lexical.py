@@ -35,6 +35,10 @@ class NamedDefinition(object):
   def __repr__(self):
     return "<{}: {}>".format(self.definitionname, str(self))
 
+class Whitespace(NamedDefinition):
+  def __repr__(self):
+    return "<{}>".format(self.definitionname)
+
 class Comment(NamedDefinition):
   definitionname = "comment"
   def __init__(self, comment):
@@ -137,5 +141,15 @@ class LexicalParser(object):
 
   def parse_comment(self):
     if self.core.skip('//'):
-      return Comment(self.core.skip_to_eol())
+      comment_val = self.core.skip_to_eol()
+      # This swallows the whitespace, which we do not want. Reset.
+      self.core.backout()
+      comment = Comment(comment_val)
+      comment.whitespace = self.parse_whitespace()
+      return comment
+
     return None
+
+  def parse_whitespace(self):
+    if self.core.skip_ws():
+      return Whitespace('whitespace', self.core.matched_text)
