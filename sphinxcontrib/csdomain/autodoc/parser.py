@@ -541,7 +541,6 @@ class FileParser(object):
     return clike
     
   def _parse_class_declaration(self):
-
     clike = self._parse_class_declaration_header()
     self.core.skip_ws()
 
@@ -555,6 +554,7 @@ class FileParser(object):
         clike.members = self._parse_any_class_member_declarations()
       elif clike.class_type in ('enum',):
         clike.members = self._parse_any_enum_member_declarations()
+
       self.swallow_with_ws('}')
       self.core.skip_with_ws(";")
       # print "Parsed {} {}".format(clike.class_type, clike.name)
@@ -628,9 +628,10 @@ class FileParser(object):
       self._parse_field_declaration,
       self._parse_method_declaration,
       self._parse_property_declaration,
-      #event,
+      self._parse_event_declaration,
       #indexer,
       self._parse_constructor_declaration,
+      self._parse_type_declaration,
     ])
     member.namespace = self.namespace.get()
     if hasattr(member, "name"):
@@ -665,7 +666,7 @@ class FileParser(object):
     return m
 
   def _parse_variable_declarators(self):
-    decs = self._parse_any(self._parse_variable_declarator)
+    decs = self._parse_any(self._parse_variable_declarator, ',')
     if not decs:
       raise DefinitionError("Didn't get any variable declarators");
     return decs
@@ -765,6 +766,31 @@ class FileParser(object):
     self.swallow_with_ws('}')
     return m
 
+  def _parse_event_declaration(self):
+    ev_mods = ["new", "public", "protected", "internal", "private",
+              "static", "virtual", "sealed", "override", "abstract",
+              "extern"]
+    m = Member("event-declaration")
+    m.attributes = self._parse_any_attributes()
+    m.modifiers = self._parse_any_modifiers(ev_mods)
+    self.swallow_word_and_ws('event')
+    m.type = self._parse_type()
+    # Two ways from here: variable-declarators and ;,
+    # or member-name then {
+    vardec = self._parse_variable_declarators()
+    if len(vardec) == 1 and self.core.skip_with_ws("{"):
+      # We are definitely type-2
+      print "Not handling type-2 event declarations atm"
+      raise DefinitionError()
+    else:
+      # Type 1
+      self.swallow_with_ws(';')
+      m.name = vardec
+    return m
+
+
+
+
   def _parse_accessor_declaration(self):
     #attributesopt accessor-modifieropt get accessor-body
     m = Member('accessor')
@@ -814,12 +840,23 @@ class FileParser(object):
   ## B.2.11 Enums #####################################
 
   def _parse_any_enum_member_declarations(self):
-    return self._parse_any(self._parse_enum_member_declaration, ",")
+    return self._parse_any(self._parse_enum_member_declaration)
 
   def _parse_enum_member_declaration(self):
+    # if self.core.line_no >= 220:
+    #   import pdb
+    #   pdb.set_trace()
+
+    # Try comment first
+    comment = self.lex.parse_comment()
+    if comment:
+      return comment
+
     m = Member("enum-member-declaration")
     m.attributes = self._parse_any_attributes()
     m.name = self.lex.parse_identifier()
+    if not m.name:
+      raise DefinitionError("Not enum entry")
     if self.core.skip_with_ws("="):
       m.comps["constant-expression"] = self._parse_expression()
     m.form = ""
@@ -828,6 +865,9 @@ class FileParser(object):
     m.form += m.name
     if m.comps.get("constant-expression", None):
       m.form += " = {}".format(m.comps["constant-expression"])
+
+    # May or may not have a comma...
+    self.core.skip_with_ws(',')
     return m
 
 

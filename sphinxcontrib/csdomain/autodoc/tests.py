@@ -13,6 +13,7 @@ class TestAutodoc(unittest.TestCase):
   def test_read(self):
     contents = opensafe(SAMPLE).read()
     parser = FileParser(contents)
+    parser._debug = True
     # parser.parse_file()
     cu = parser.parse_file()
 
@@ -86,7 +87,7 @@ class TestAutodoc(unittest.TestCase):
     self.assertTrue(p.core.eof)
 
   def test_whole_folder(self):
-    pattern = "/Users/xgkkp/dockets/app/Core/Utils/ExtractIcon.cs"
+    pattern = "/Users/xgkkp/dockets/app/Core/Utils/*.cs"
     for filename in glob.glob(pattern):
       print "================="
       print "Parsing " + os.path.basename(filename)
