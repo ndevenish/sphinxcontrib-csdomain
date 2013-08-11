@@ -12,7 +12,13 @@ class TestAutodoc(unittest.TestCase):
     contents = opensafe(SAMPLE).read()
     parser = FileParser(contents)
     # parser.parse_file()
-    parser.parse_file()
+    cu = parser.parse_file()
+
+    # print 
+    # for cls in cu.iter_classes():
+    #   print "Class: {}".format(cls.name)
+    #   print "  Doc? {}".format(bool(cls.documentation))
+    #   print str(cls.documentation)
 
   def test_eol(self):
     parser = FileParser("Some text to the end\nof the line")
@@ -46,3 +52,11 @@ class TestAutodoc(unittest.TestCase):
     p = FileParser("var x = new []{}()something(withpar);")
     p._parse_balanced_expression()
     self.assertEqual(p.core.next_char, ';')
+
+  def test_parsing_xmldoc(self):
+    # doc = ["/ <summary>", "/ Contains methods to probe various details about a database, without attempting", "/ to connect proper, i.e. avoiding NHibernate.", "/ </summary>"]
+    doc = ['/ <summary>', '/ Initialise with only a hostname and port', '/ </summary>', '/ <param name="hostname">The hostname to connect to</param>', '/ <param name="port">The port to connect to</param>', '/ <remarks>This method can be useful when checking for server existence</remarks><returns>Some value</returns>']
+    c = Comment()
+    c.parts = doc
+    self.assertTrue(c.is_documentation)
+    doc = c.parse_documentation()

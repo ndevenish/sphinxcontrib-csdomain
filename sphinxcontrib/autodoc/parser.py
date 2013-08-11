@@ -68,6 +68,12 @@ class FileParser(object):
     self.lex = LexicalParser(self.core)
     self.namespace = NamespaceStack()
 
+  def parse_file(self):
+    cu = self._parse_compilation_unit()
+    # summarize_space(cu)
+    # print "Classes: " + str(list(cu.iter_classes()))
+    return cu
+
   def opt(self, parser):
     state = self.core.savepos()
     try:
@@ -117,12 +123,6 @@ class FileParser(object):
 
   def restorepos(self, state):
     self.core.restorepos(state)
-
-  def parse_file(self):
-    cu = self._parse_compilation_unit()
-    summarize_space(cu)
-    print "Classes: " + str(list(cu.iter_classes()))
-    return cu
 
   def _parse_any(self, parser, separator = None):
     """Attempts to parse any number of separated structures"""

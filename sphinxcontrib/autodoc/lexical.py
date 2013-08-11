@@ -1,8 +1,10 @@
 # coding: utf-8
 
 import re
+from .xmldoc import XmldocParser
 
 _identifier_re = re.compile(r'(~?\b[a-zA-Z_][a-zA-Z0-9_]*)\b')
+_doc_comment_skip_re = re.compile(r'[\s/]*')
 
 KEYWORDS = ("abstract", "byte", "class", "delegate", "event", 
   "fixed", "if", "internal", "new", "override", "readonly", 
@@ -46,15 +48,28 @@ class Whitespace(NamedDefinition):
 
 class Comment(NamedDefinition):
   definitionname = "comment"
-  def __init__(self, comment):
-    self.parts = [comment]
-    self.form = "// " + comment
+  def __init__(self, comment = None):
+    self.parts = []
+    if comment:
+      self.parts = [comment]
+      self.form = "// " + comment
   def __repr__(self):
     return "<{}>".format(self.definitionname)
+  def __str__(self):
+    return "\n".join("//{}".format(x) for x in self.parts)
   
   @property
   def is_documentation(self):
     return self.parts[0].startswith("/")
+
+  def parse_documentation(self):
+    def _strip_leading(line):
+      index = len(_doc_comment_skip_re.match(line).group())
+      return line[index:]
+    # Strip the leading / and whitespace from every line
+    stripped = [_strip_leading(x).strip() for x in self.parts]
+    fulltext = " ".join(stripped)
+    return XmldocParser(fulltext).parse()
 
 class SeparatedNameList(NamedDefinition):
   def __init__(self, name, separator = " "):
@@ -108,7 +123,7 @@ class Space(NamedDefinition):
 
   def iter_classes(self):
     for member in self.members:
-      print "Checking " + repr(member)
+      # print "Checking " + repr(member)
       if type(member) is Class:
         yield member
       if hasattr(member, "iter_classes"):
@@ -174,6 +189,7 @@ class LexicalParser(object):
     return ident
 
   def parse_comment(self):
+
     if self.core.skip('//'):
       comment_val = self.core.skip_to_eol()
       # This swallows the whitespace, which we do not want. Reset.
