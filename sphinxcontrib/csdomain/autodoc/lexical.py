@@ -206,6 +206,8 @@ class Method(Member):
 
 
 class Property(Member):
+  setter = None
+  getter = None
   def signature(self):
     sig = []
     sig.extend(self.attributes)
@@ -213,13 +215,13 @@ class Property(Member):
     sig.append(self.type)
     sig.append(self.name)
     sig.append("{")
-    getter = next(x for x in self.accessors if x.accessor == "get")
-    if getter:
-      sig.extend(getter.modifiers)
+
+    # getter = next(x for x in self.accessors if x.accessor == "get")
+    if self.getter:
+      sig.extend(self.getter.modifiers)
       sig.append("get;")
-    setter = next(x for x in self.accessors if x.accessor == "set")
-    if setter:
-      sig.extend(getter.modifiers)
+    if self.setter:
+      sig.extend(self.setter.modifiers)
       sig.append("set;")
     sig.append("}")
     return " ".join(str(x) for x in sig)

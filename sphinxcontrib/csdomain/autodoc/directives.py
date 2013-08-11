@@ -45,7 +45,7 @@ class CSAutodoc(Directive):
     contents = opensafe(path).read()
     parser = FileParser(contents)
     cu = parser.parse_file()
-    print "Parsed from file: " + repr(cu)
+    # print "Parsed from file: " + repr(cu)
 
     todoc = self.arguments[0]
     print "Asked to document: " + todoc
@@ -58,8 +58,20 @@ class CSAutodoc(Directive):
     # print obj.signature()
     # print documentation
 
+    # print "Generating REST"
+
+    # if obj.name == "DB":
+    #   try:
+    #     self.rest_for_class(obj)
+    #   except:
+    #     import pdb
+    #     pdb.post_mortem()
+    #     raise
+
+
     rest = self.rest_for_class(obj)
 
+    # print "Parsing internally"
     node = nodes.paragraph()
     node.document = self.state.document
     self.state.nested_parse(rest, 0, node)

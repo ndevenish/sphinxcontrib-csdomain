@@ -735,11 +735,18 @@ class FileParser(object):
     self.swallow_with_ws('{')
     # Accessor declarations
     acc = self._parse_accessor_declaration()
-    acc2 = self.opt(self._parse_accessor_declaration)
-    if acc2:
-      m.accessors = [acc, acc2]
+    if acc.accessor == "get":
+      m.getter = acc
     else:
-      m.accessors = [acc]
+      m.setter = acc
+
+    acc = self.opt(self._parse_accessor_declaration)
+    if acc:
+      if acc.accessor == "get":
+        m.getter = acc
+      else:
+        m.setter = acc
+
     self.swallow_with_ws('}')
     return m
 
