@@ -70,6 +70,7 @@ class FileParser(object):
     self.namespace = NamespaceStack()
     self.opt =  self.core.opt
     self.first_of = self.core.first_of
+    self._parsing = None
 
 
   def parse_file(self):
@@ -145,10 +146,24 @@ class FileParser(object):
     return self._parse_namespace_or_type_name()
 
   def _parse_namespace_or_type_name(self):
+    def _ident_type_arg_list():
+      ident = self.lex.parse_identifier()
+      if not ident:
+        raise DefinitionError("not an ident")
+      args = self.opt(self._parse_type_argument_list)
+      m = TypeName('namespace_or_type_name')
+      m.comps['identifier'] = ident
+      m.comps['type-argument-list'] = args
+      m.name = ident
+      m.form = m.name
+      if args:
+        m.form += "<{}>".format(", ".join(str(x) for x in args))
+      return m
+
     def _first():
       # identifier type-argument-listopt
-      names = self._parse_any(self.lex.parse_identifier, '.')
-      ident = ".".join(names)
+      names = self._parse_any(_ident_type_arg_list, '.')
+      ident = ".".join(str(x) for x in names)
 
       # ident = self.lex.parse_identifier()
       if not ident:
@@ -160,7 +175,7 @@ class FileParser(object):
       t.parts.append(args)
       t.form = ident
       if args:
-        t.form += "<{}>".format(", ".join(args))
+        t.form += "<{}>".format(", ".join(str(x) for x in args))
       return t
     
     def _second():
@@ -194,6 +209,7 @@ class FileParser(object):
   ## B.2.2 Types ####################################
 
   def _parse_type(self):
+    
     state = self.core.savepos()
     tname = self.first_of((self._parse_value_type, 
       self._parse_reference_type, self._parse_type_parameter))
@@ -209,6 +225,11 @@ class FileParser(object):
         # Use the previous match
         self.core.restorepos(state_pre)
     tname.nullable = self.core.skip_with_ws("?")
+    if self._debug and self.core.line_no == 110:
+      # import pdb
+      # pdb.set_trace()
+      print "Returning: {} @ {}".format(tname, self.cur_line())
+    
     return tname
 
   def _parse_nonarray_type(self):
@@ -274,6 +295,7 @@ class FileParser(object):
     if not args:
       raise DefinitionError("No type argument params")
     self.swallow_with_ws('>')
+    return args
 
 
   ## B.2.4 Expressions ################################
@@ -550,7 +572,7 @@ class FileParser(object):
       # if self._debug and self.core.line_no >= 40:
       #   import pdb
       #   pdb.set_trace()
-      
+
       # Class body
       # print "Line: " + self.core.definition[self.core.pos:self.core.pos+30]
       self.swallow_with_ws('{')
@@ -644,6 +666,7 @@ class FileParser(object):
     return member
 
   def _parse_constant_declaration(self):
+    self._parsing = "constant-declaration"
     m = Member("constant-declaration")
     m.attributes = self._parse_any_attributes()
     m.modifiers = self._parse_any_modifiers(['new', 'public', 'protected', 'internal', 'private'])
@@ -658,6 +681,7 @@ class FileParser(object):
     return m
 
   def _parse_field_declaration(self):
+    self._parsing = "field-declaration"
     # print "Trying to parse field: " + self.cur_line()
     m = Member("field-declaration")
     m.attributes = self._parse_any_attributes()
@@ -691,7 +715,7 @@ class FileParser(object):
     # if self.core.line_no == 155:
     #   import pdb
     #   pdb.set_trace()
-
+    self._parsing = "method-declaration"
     m = self._parse_method_header()
 
     m.body = self.opt(self._parse_block)
@@ -746,8 +770,9 @@ class FileParser(object):
     return p  
 
   def _parse_property_declaration(self):
-    # print "Trying to parse property: " + self.cur_line()
+    self._parsing = "property-declaration"
 
+    # print "Trying to parse property: " + self.cur_line()
     m = Property('property-declaration')
     m.attributes = self._parse_any_attributes()
     m.modifiers = self._parse_any_property_modifiers()
@@ -772,6 +797,7 @@ class FileParser(object):
     return m
 
   def _parse_event_declaration(self):
+    self._parsing = "event-declaration"
     ev_mods = ["new", "public", "protected", "internal", "private",
               "static", "virtual", "sealed", "override", "abstract",
               "extern"]
@@ -813,7 +839,7 @@ class FileParser(object):
     # import pdb
     # pdb.set_trace()
     # constructor-declarator constructor-body
-
+    self._parsing = "constructor-declaration"
     m = Method('constructor-declaration')
     m.attributes = self._parse_any_attributes()
     m.modifiers = self._parse_any_modifiers(['public', 'protected', 'internal', 'private', 'extern'])
