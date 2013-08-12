@@ -997,12 +997,21 @@ class FileParser(object):
     self._parsing = "constructor-declaration"
     m = Method('constructor-declaration')
     m.attributes = self._parse_any_attributes()
-    m.modifiers = self._parse_any_modifiers(['public', 'protected', 'internal', 'private', 'extern'])
+    # Include static, could be a static constructor
+    m.modifiers = self._parse_any_modifiers(
+      ['public', 'protected', 'internal', 'private', 'extern', 'static'])
+    static = "static" in m.modifiers
+    if static:
+      m.definitionname = 'static-constructor-declaration'
+      m.definitions = ['static-constructor-declaration']
+
     m.name = self.lex.parse_identifier()
     self.swallow_with_ws('(')
-    m.parameters = self.opt(self._parse_formal_parameter_list)
+    if not static:
+      m.parameters = self.opt(self._parse_formal_parameter_list)
     self.swallow_with_ws(')')
-    m.initialiser = self.opt(self._parse_constructor_initialiser)
+    if not static:
+      m.initialiser = self.opt(self._parse_constructor_initialiser)
 
     m.body = self.opt(self._parse_block)
     if not m.body:

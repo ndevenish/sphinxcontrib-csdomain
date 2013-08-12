@@ -106,3 +106,9 @@ class TestAutodoc(unittest.TestCase):
     p = FileParser("where T : new()")
     p._parse_type_parameter_constraints_clause()
     self.assertTrue(p.core.eof)
+
+  def test_static_constructor(self):
+    p = FileParser("static ConstructorName(){}")
+    cons = p._parse_constructor_declaration()
+    self.assertIsNotNone(cons)
+    self.assertIn('static-constructor-declaration', cons.definitions)
