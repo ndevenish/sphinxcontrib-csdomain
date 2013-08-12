@@ -180,7 +180,7 @@ class FileParser(object):
         ident_q = self.lex.parse_identifier()
         if not ident_q:
           raise DefinitionError("Not a proper qualified namespace")
-      args = self.opt(self._parse_type_parameter_list)
+      args = self.opt(self._parse_type_argument_list)
       
       m.comps['identifier'] = ident
       m.comps['identifier_qual'] = ident_q
@@ -702,6 +702,18 @@ class FileParser(object):
     ident = self.lex.parse_identifier()
     return ident
 
+  def _parse_type_argument_list(self):
+    def _parse_type_argument():
+      return self._parse_type()
+
+    self.swallow_with_ws('<')
+    params = self._parse_any(_parse_type_argument, ",")
+    if not params:
+      raise DefinitionError("Incorrect type parameter list")
+    self.swallow_with_ws('>')
+    pl = lexical.TypeArgumentList()
+    pl.parts = params
+    return pl
 
   def _parse_any_type_parameter_constraints_clauses(self):
     return self._parse_any(self._parse_type_parameter_constraints_clause)

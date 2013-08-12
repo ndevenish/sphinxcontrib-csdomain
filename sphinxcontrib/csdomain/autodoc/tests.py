@@ -157,5 +157,6 @@ class TestAutodoc(unittest.TestCase):
     p = FileParser("SomeType<string> PropertyName { get; }")
     # import pdb
     # pdb.set_trace()
+    # p._parse_namespace_or_type_name()
     p._parse_property_declaration()
     self.assertTrue(p.core.eof)

@@ -132,6 +132,13 @@ class TypeParameterList(SeparatedNameList):
   def __str__(self):
     return "<" + self.separator.join(self.parts) + ">"
 
+class TypeArgumentList(SeparatedNameList):
+  def __init__(self):
+    super(TypeArgumentList, self).__init__("type-argument-list", ", ")
+
+  def __str__(self):
+    return "<" + self.separator.join(self.parts) + ">"  
+
 class Space(NamedDefinition):
   members = None
   using = None
