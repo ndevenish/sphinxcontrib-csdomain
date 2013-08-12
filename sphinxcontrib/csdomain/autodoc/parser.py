@@ -253,27 +253,37 @@ class FileParser(object):
     simple_types = ("sbyte", "byte", "short", "ushort", "int", "uint", "long", "ulong", "char", "decimal")
     kw = self.lex.parse_identifier_or_keyword()
     if kw in simple_types:
-      return TypeName("value-type", kw)
+      return TypeName("integral-type", kw)
     raise DefinitionError("Not an integral type")
 
-  def _parse_value_type(self):
-    def _simple_type():
-      # numeric or bool
-      numt = self.opt(self._parse_integral_type)
-      if numt:
-        return numt
-      self.swallow_word_and_ws('bool')
-      return TypeName('simple-type', 'bool')
+  def _parse_floating_point_type(self):
+    float_t = ["float", "double"]
+    typ = self.swallow_one_of(float_t)
+    return TypeName("floating-point-type")
 
+  def _parse_simple_type(self):
+    # numeric or bool
+    numt = self.opt(self._parse_integral_type)
+    if not numt:
+      numt = self.opt(self._parse_floating_point_type)
+      if not numt:
+        self.swallow_word_and_ws('bool')
+        numt = TypeName("bool", "bool")
+    numt.adddef("simple-type")
+    return numt
+
+  def _parse_value_type(self):
 
     def _struct_type():
       # Not handling nullable - could be anywhere?
-      return self.first_of((self._parse_type_name, _simple_type ))
+      return self.first_of((self._parse_type_name, self._parse_simple_type ))
 
     def _enum_type():
       return self._parse_type_name()
 
-    return self.first_of((_struct_type, _enum_type))
+    val = self.first_of((_struct_type, _enum_type))
+    val.adddef("value-type")
+    return val
 
   def _parse_reference_type(self):
     return self.first_of(

@@ -86,17 +86,6 @@ class TestAutodoc(unittest.TestCase):
     p._parse_type()
     self.assertTrue(p.core.eof)
 
-  def test_whole_folder(self):
-    pattern = "/Users/xgkkp/dockets/app/Core/Utils/ViewModels.cs"
-    for filename in glob.glob(pattern):
-      print "================="
-      print "Parsing " + os.path.basename(filename)
-      contents = opensafe(filename).read()
-      parser = FileParser(contents)
-      # parser._debug = True
-      cu = parser.parse_file()
-      summarize_space(cu)
-
   def test_generic_new(self):
     p = FileParser("class Test<T> where T : new() { }")
     cls = p._parse_class_declaration()
@@ -112,3 +101,35 @@ class TestAutodoc(unittest.TestCase):
     cons = p._parse_constructor_declaration()
     self.assertIsNotNone(cons)
     self.assertIn('static-constructor-declaration', cons.definitions)
+
+  def test_parse_double(self):
+    p = FileParser('double')
+    self.assertIsNotNone(p._parse_simple_type())
+    p.core.pos = 0
+    self.assertIsNotNone(p._parse_type())
+
+  # def test_field(self):
+  #   p = FileParser("private readonly double PointsPerCharacter;")
+  #   import pdb
+  #   pdb.set_trace()
+  #   f = p._parse_field_declaration()
+  #   self.assertIsNotNone(f)
+
+  def test_whole_module(self):
+    return
+    files = set()
+    for (dirpath, _, filenames) in os.walk("/Users/xgkkp/dockets/app/Core/"):
+      for filename in filenames:
+        if filename.endswith(".cs"):
+          files.add(os.path.join(dirpath, filename))
+    # print files
+    # return
+    # pattern = "/Users/xgkkp/dockets/app/Core/Utils/*.cs"
+    for filename in files:
+      print "================="
+      print "Parsing " + os.path.basename(filename)
+      contents = opensafe(filename).read()
+      parser = FileParser(contents)
+      # parser._debug = True
+      cu = parser.parse_file()
+      summarize_space(cu)
