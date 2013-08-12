@@ -116,21 +116,21 @@ class TestAutodoc(unittest.TestCase):
   #   self.assertIsNotNone(f)
 
   def test_whole_module(self):
-    # return
+    return
     files = set()
-    for (dirpath, _, filenames) in os.walk("/Users/xgkkp/dockets/app/Core/"):
+    for (dirpath, _, filenames) in os.walk("/Users/xgkkp/dockets/app/"):
       for filename in filenames:
         if filename.endswith(".cs"):
           files.add(os.path.join(dirpath, filename))
     # print files
     # return
     # pattern = "/Users/xgkkp/dockets/app/Core/Utils/*.cs"
-    for filename in [x for x in files if "AssemblyInfo" in x]:
+    for filename in [x for x in files if "Settings.Designer.cs" in x]:
       print "================="
       print "Parsing " + os.path.basename(filename)
       contents = opensafe(filename).read()
       parser = FileParser(contents)
-      # parser._debug = True
+      parser._debug = True
       cu = parser.parse_file()
       summarize_space(cu)
 
@@ -145,3 +145,14 @@ class TestAutodoc(unittest.TestCase):
     oop = p.lex.parse_operator_or_punctuator()
     self.assertIsNotNone(oop)
     self.assertEqual(str(oop), "+")
+
+  def test_qualified_identifier(self):
+    p = FileParser("global::System.Runtime.CompilerServices.CompilerGeneratedAttribute")
+    p._parse_type_name()
+    self.assertTrue(p.core.eof)
+
+  # def test_crazy_assemblyinfo(self):
+  #   p = FileParser("[global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]")
+  #   import pdb
+  #   pdb.set_trace()
+  #   self.assertIsNotNone(p._parse_global_attribute_section())
