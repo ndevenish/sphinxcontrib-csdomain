@@ -160,3 +160,18 @@ class TestAutodoc(unittest.TestCase):
     # p._parse_namespace_or_type_name()
     p._parse_property_declaration()
     self.assertTrue(p.core.eof)
+
+  # def test_generic_indexer(self):
+  #   p = FileParser("TValue IDictionary<TKey, TValue>.this[TKey key] { get; }")
+  #   # import pdb
+  #   # pdb.set_trace()
+  #   p._parse_indexer_declaration()
+  #   self.assertTrue(p.core.eof)
+
+  def test_indexer_interface_prefix(self):
+    """Tests swallowing of trailing . does not occur"""
+    p = FileParser("IDictionary<TKey, TValue>.this")
+    # import pdb
+    # pdb.set_trace()
+    p._parse_interface_type()
+    self.assertEquals(p.cur_line(), ".this")

@@ -144,6 +144,7 @@ class FileParser(object):
       while True:
         item = parser()
         if not item:
+          self.restorepos(state)
           break;
         items.append(item)
         state = self.savepos()
