@@ -73,8 +73,8 @@ class FileParser(object):
 
   def first_of(self, parsers, msg=None):
     for parser in parsers:
-      if self._debug:
-        print "Trying parser " + str(parser.__name__)
+      # if self._debug:
+      #   print "Trying parser " + str(parser.__name__)
       val = self.opt(parser)
       if val:
         return val
@@ -592,9 +592,6 @@ class FileParser(object):
     clike.namespace = self.namespace.get()
     self.namespace.push(clike.name)
     try:    
-      # if self._debug and self.core.line_no >= 40:
-      #   import pdb
-      #   pdb.set_trace()
 
       # Class body
       # print "Line: " + self.core.definition[self.core.pos:self.core.pos+30]
@@ -789,7 +786,7 @@ class FileParser(object):
     p.form = "{} {} {} {}".format(p.attributes, p.modifier, p.type, p.name)
     if self.core.skip_with_ws('='):
       p.default = self._parse_expression()
-      p.form += " = " + p.default
+      p.form += " = " + str(p.default)
     p.form = p.form.strip()
 
     return p  
@@ -824,9 +821,9 @@ class FileParser(object):
         m.setter = acc
 
   def _parse_event_declaration(self):
-    if self.core.line_no == 611 and self._debug:
-      import pdb
-      pdb.set_trace()
+    # if self.core.line_no == 611 and self._debug:
+    #   import pdb
+    #   pdb.set_trace()
 
     self._parsing = "event-declaration"
     ev_mods = ["new", "public", "protected", "internal", "private",
@@ -936,7 +933,7 @@ class FileParser(object):
     args = self._parse_any(self._parse_expression, ",")
     self.swallow_with_ws(')')
 
-    form = ": {}({})".format(to, ", ".join(args))
+    form = ": {}({})".format(to, ", ".join(str(x) for x in args))
 
     # import pdb
     # pdb.set_trace()
@@ -994,6 +991,7 @@ class FileParser(object):
     counts = {"{-}": 0, "(-)": 0, "[-]": 0, "-;-": 0, '-/-': 0}
     tomatch = "()[]{};/"
     expr = ""
+    start_pos = self.core.pos
     while True:
       expr += self.core.skip_to_any_char(tomatch)
       nextmatch = self.core.next_char
@@ -1030,7 +1028,14 @@ class FileParser(object):
       expr += nextmatch
       self.core.skip(nextmatch)
 
-    return expr
+    if self.core.pos == start_pos:
+      # print "Statement went nowhere"
+      return None
+    # if expr == "":
+    #   import pdb
+    #   pdb.set_trace()
+    #   return None
+    return NamedDefinition('expression', expr)
 
     # raise Exception("Not processing expressions")
 
@@ -1064,8 +1069,9 @@ class FileParser(object):
     if not self.core.skip_with_ws('('):
       return []
     # Skip anything until the end )
-    self.core.match(re.compile(r"[^)]*"))
-    value = self.core.matched_text
+    value = self._parse_expression()
+    # self.core.match(re.compile(r"[^)]*"))
+    # value = self.core.matched_text
     self.swallow_with_ws(')')
     return [value]
 
