@@ -74,7 +74,7 @@ class FileParser(object):
   def first_of(self, parsers, msg=None):
     for parser in parsers:
       if self._debug:
-        print "Trying " + str(parser)
+        print "Trying parser " + str(parser.__name__)
       val = self.opt(parser)
       if val:
         return val
@@ -263,6 +263,7 @@ class FileParser(object):
       if numt:
         return numt
       self.swallow_word_and_ws('bool')
+      return TypeName('simple-type', 'bool')
 
 
     def _struct_type():
@@ -734,6 +735,10 @@ class FileParser(object):
   def _parse_method_declaration(self):
     # print "Trying to parse member: " + self.cur_line()
     self._parsing = "method-declaration"
+    # if self._debug and self.core.line_no == 27:
+    #   import pdb
+    #   pdb.set_trace()
+
     m = self._parse_method_header()
 
     m.body = self.opt(self._parse_block)
