@@ -116,7 +116,7 @@ class TestAutodoc(unittest.TestCase):
   #   self.assertIsNotNone(f)
 
   def test_whole_module(self):
-    return
+    # return
     files = set()
     for (dirpath, _, filenames) in os.walk("/Users/xgkkp/dockets/app/Core/"):
       for filename in filenames:
@@ -125,15 +125,23 @@ class TestAutodoc(unittest.TestCase):
     # print files
     # return
     # pattern = "/Users/xgkkp/dockets/app/Core/Utils/*.cs"
-    for filename in files:
+    for filename in [x for x in files if "AssemblyInfo" in x]:
       print "================="
       print "Parsing " + os.path.basename(filename)
       contents = opensafe(filename).read()
       parser = FileParser(contents)
       # parser._debug = True
+      import pdb
+      pdb.set_trace()
       cu = parser.parse_file()
       summarize_space(cu)
 
   def test_assemblyinfo(self):
     p = FileParser('[assembly: AssemblyTitle("StylePackCore")]')
     self.assertIsNotNone(p.parse_file())
+
+  def test_ops(self):
+    p = FileParser("+")
+    oop = p.lex.parse_operator_or_punctuator()
+    self.assertIsNotNone(oop)
+    self.assertEqual(str(oop), "+")

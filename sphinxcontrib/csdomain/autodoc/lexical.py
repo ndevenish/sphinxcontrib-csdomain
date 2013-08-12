@@ -345,6 +345,12 @@ class LexicalParser(object):
       self.parse_keyword,
       #self.parse_numeric_literal,
       # etc etc
+      # integer-literal
+      # real-literal
+      # character-literal 
+      # string-literal 
+      #operator-or-punctuator
+      self.parse_operator_or_punctuator,
       ])
     # ident = self._parse_identifier()
     if not ident:
@@ -398,6 +404,23 @@ class LexicalParser(object):
 
     
       # We must have a hexadecimal on our hands
+
+
+  def parse_operator_or_punctuator(self):
+    ops_1 = list("{}[]().,:;+-*/%&|^!~=<>?")
+    ops_2 = ['??', '::', '++', '--', '&&', '||', '->', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '&=', '|=', '^=', '<<', '=>']
+    ops_3 = ['<<=']
+    parsed = None
+    threechars = self.core.definition[self.core.pos:self.core.pos+3]
+    if len(threechars) == 3 and threechars in ops_3:
+      parsed = threechars
+    elif len(threechars) >= 2 and threechars[:2] in ops_2:
+      parsed = threechars[:2]
+    elif len(threechars) >= 1 and threechars[0] in ops_1:
+      parsed = threechars[0]
+    if not parsed:
+      return None
+    return NamedDefinition("operator-or-punctuator", parsed)
 
 
 
