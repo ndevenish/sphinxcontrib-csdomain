@@ -113,8 +113,8 @@ class TestAutodoc(unittest.TestCase):
   #   f = p._parse_field_declaration()
   #   self.assertIsNotNone(f)
 
-  def test_whole_module(self):
-    # return
+  def test_whole_tree(self):
+    return
     files = set()
     for (dirpath, _, filenames) in os.walk("/Users/xgkkp/dockets/app/"):
       for filename in filenames:
@@ -182,14 +182,10 @@ class TestAutodoc(unittest.TestCase):
     self.assertTrue(p.core.eof)
 
   def testfailingdependencyprop(self):
-    return
     # p = FileParser('public static readonly DependencyProperty IconProperty = DependencyProperty.Register("Icon", typeof(Uri), typeof(EditorBase), new PropertyMetadata(new Uri("pack://application:,,,/StylePack;component/StylePack.ico")));')
     p = FileParser('IconProperty = DependencyProperty.Register("Icon", typeof(Uri), typeof(EditorBase), new PropertyMetadata(new Uri("pack://application:,,,/StylePack;component/StylePack.ico")));')
-
-    import pdb
-    pdb.set_trace()
-
     p._parse_variable_declarator()
+    self.assertEqual(p.core.pop_char(), ";")
     self.assertTrue(p.core.eof)
 
   def test_string_literal(self):
