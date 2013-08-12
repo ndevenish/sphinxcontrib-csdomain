@@ -736,15 +736,12 @@ class FileParser(object):
   def _parse_method_declaration(self):
     # print "Trying to parse member: " + self.cur_line()
     self._parsing = "method-declaration"
-    # if self._debug and self.core.line_no == 27:
+
+    # if self._debug and self.core.line_no == 147:
     #   import pdb
     #   pdb.set_trace()
-    m = self._parse_method_header()
-    print m.name, self.core.line_no
-    if m.name == "ThumbnailFor":
-      import pdb
-      pdb.set_trace()
 
+    m = self._parse_method_header()
     m.body = self.opt(self._parse_block)
     if not m.body:
       self.swallow_with_ws(';')
@@ -987,6 +984,10 @@ class FileParser(object):
     return self._parse_balanced_expression()
 
   def _parse_balanced_expression(self):
+
+    # if self.core.line_no >= 145 and self._debug:
+    #   import pdb
+    #   pdb.set_trace()
     DBG = False
     # if self.cur_line().startswith("using (var conn = new NpgsqlC"):
     #   DBG = True
@@ -1006,6 +1007,7 @@ class FileParser(object):
       # If nextmatch is /, try to parse a comment
       if self.lex.parse_comment():
         # print "Parsed comment from balanced expression"
+        expr += "// comment"
         continue
       # Find the tracking entry corresponding to this
       index = next(x for x in counts.iterkeys() if nextmatch in x)
