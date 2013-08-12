@@ -91,6 +91,15 @@ class FileParser(object):
 
   def swallow_with_ws(self, char):
     """Skips a character and any trailing whitespace, but raises DefinitionError if not found"""
+    # Verify that the char is in the operator-or-punctuators
+    assert char in lexical.OPERATOR_OR_PUNCTUATOR
+    state = self.core.savepos()
+    nexttok = self.lex.parse_next_token()
+    # print str(nexttok), char
+    if str(nexttok) == char:
+      self.core.skip_ws()
+      return
+    self.core.restorepos(state)
     if not self.core.skip_with_ws(char):
       if not self.core.eof:
         raise DefinitionError(u"Unexpected token: '{}'; Expected '{}'".format(self.cur_line(), char))
@@ -102,6 +111,7 @@ class FileParser(object):
     state = self.core.savepos()
     nexttok = self.lex.parse_next_token()
     if nexttok == word:
+      self.core.skip_ws()
       return
     self.core.restorepos(state)
     if not self.core.eof:

@@ -131,13 +131,13 @@ class TestAutodoc(unittest.TestCase):
       contents = opensafe(filename).read()
       parser = FileParser(contents)
       # parser._debug = True
-      import pdb
-      pdb.set_trace()
       cu = parser.parse_file()
       summarize_space(cu)
 
   def test_assemblyinfo(self):
     p = FileParser('[assembly: AssemblyTitle("StylePackCore")]')
+    # import pdb
+    # pdb.set_trace()
     self.assertIsNotNone(p.parse_file())
 
   def test_ops(self):

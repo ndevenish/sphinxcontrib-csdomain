@@ -22,6 +22,11 @@ KEYWORDS = ("abstract", "byte", "class", "delegate", "event",
   "namespace", "out", "public", "sealed", "string", "true", 
   "unchecked", "void")
 
+OPERATOR_OR_PUNCTUATOR = [
+  '{', '}', '[', ']', '(', ')', '.', ',', ':', ';', '+', '-', '*', '/', '%',
+  '&', '|', '^', '!', '~', '=', '<', '>', '?',
+  '??', '::', '++', '--', '&&', '||', '->', '==', '!=', '<=', '>=', '+=',
+  '-=', '*=', '/=', '%=', '&=', '|=', '^=', '<<', '=>', '<<=']
 
 class NamedDefinition(object):
   definitionname = None
@@ -407,9 +412,14 @@ class LexicalParser(object):
 
 
   def parse_operator_or_punctuator(self):
-    ops_1 = list("{}[]().,:;+-*/%&|^!~=<>?")
-    ops_2 = ['??', '::', '++', '--', '&&', '||', '->', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '&=', '|=', '^=', '<<', '=>']
-    ops_3 = ['<<=']
+    # ops_1 = 
+    # OPERATOR_OR_PUNCTUATOR
+    ops_1 = [x for x in OPERATOR_OR_PUNCTUATOR if len(x) == 1]
+    ops_2 = [x for x in OPERATOR_OR_PUNCTUATOR if len(x) == 2]
+    ops_3 = [x for x in OPERATOR_OR_PUNCTUATOR if len(x) == 3]
+    # ops_1 = list("{}[]().,:;+-*/%&|^!~=<>?")
+    # ops_2 = ['??', '::', '++', '--', '&&', '||', '->', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '&=', '|=', '^=', '<<', '=>']
+    # ops_3 = ['<<=']
     parsed = None
     threechars = self.core.definition[self.core.pos:self.core.pos+3]
     if len(threechars) == 3 and threechars in ops_3:
@@ -420,6 +430,7 @@ class LexicalParser(object):
       parsed = threechars[0]
     if not parsed:
       return None
+    self.core.pos += len(parsed)
     return NamedDefinition("operator-or-punctuator", parsed)
 
 
