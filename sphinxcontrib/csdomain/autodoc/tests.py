@@ -81,8 +81,6 @@ class TestAutodoc(unittest.TestCase):
   def test_parse_array_type(self):
     tp = "string[]"
     p = FileParser(tp)
-    # import pdb
-    # pdb.set_trace()
     p._parse_type()
     self.assertTrue(p.core.eof)
 
@@ -145,6 +143,10 @@ class TestAutodoc(unittest.TestCase):
     oop = p.lex.parse_operator_or_punctuator()
     self.assertIsNotNone(oop)
     self.assertEqual(str(oop), "+")
+    p = FileParser("::+")
+    oop = p.lex.parse_operator_or_punctuator()
+    self.assertIsNotNone(oop)
+    self.assertEqual(str(oop), "::")
 
   def test_qualified_identifier(self):
     p = FileParser("global::System.Runtime.CompilerServices.CompilerGeneratedAttribute")

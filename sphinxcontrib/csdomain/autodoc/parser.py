@@ -98,7 +98,7 @@ class FileParser(object):
     # print str(nexttok), char
     if str(nexttok) == char:
       self.core.skip_ws()
-      return
+      return True
     self.core.restorepos(state)
     if not self.core.skip_with_ws(char):
       if not self.core.eof:
@@ -112,7 +112,7 @@ class FileParser(object):
     nexttok = self.lex.parse_next_token()
     if nexttok == word:
       self.core.skip_ws()
-      return
+      return True
     self.core.restorepos(state)
     if not self.core.eof:
       raise DefinitionError(u"Unexpected token: '{}'; Expected '{}'".format(self.cur_line(), word))
@@ -166,65 +166,110 @@ class FileParser(object):
     return self._parse_namespace_or_type_name()
 
   def _parse_namespace_or_type_name(self):
-    def _ident_type_arg_list():
+    def _parse_single_part():
+      startpos = self.core.pos
+      m = TypeName('namespace_or_type_name')
       ident = self.lex.parse_identifier()
       if not ident:
-        raise DefinitionError("not an ident")
-      args = self.opt(self._parse_type_argument_list)
-      m = TypeName('namespace_or_type_name')
+        return None
+      # Either, type argument list or ::
+      ident_q = None
+      if self.opt(lambda: self.swallow_with_ws("::")):
+        # Qualified..
+        m.adddef("qualified-alias-member")
+        ident_q = self.lex.parse_identifier()
+        if not ident_q:
+          raise DefinitionError("Not a proper qualified namespace")
+      args = self.opt(self._parse_type_parameter_list)
+      
       m.comps['identifier'] = ident
+      m.comps['identifier_qual'] = ident_q
       m.comps['type-argument-list'] = args
-      m.name = ident
-      m.form = m.name
-      if args:
-        m.form += "<{}>".format(", ".join(str(x) for x in args))
+      m.name = self.core.definition[startpos:self.core.pos]
+      m.form = self.core.definition[startpos:self.core.pos]
       return m
 
-    def _first():
-      # identifier type-argument-listopt
-      names = self._parse_any(_ident_type_arg_list, '.')
-      ident = ".".join(str(x) for x in names)
+    parts = self._parse_any(_parse_single_part, ".")
+    if not parts:
+      raise DefinitionError("Couldn't parse namespace-or-type-name")
+    nms = SeparatedNameList("namespace-or-type-name", '.')
+    nms.parts = parts
+    return nms
 
-      # ident = self.lex.parse_identifier()
-      if not ident:
-        raise DefinitionError("no identity")
-      args = self.opt(self._parse_type_argument_list)
+
+#       amespace-or-type-name: .-separate list of:
+# identifier type-argument-listopt
+# OR: qualified-alias-member
+# identifier :: identifier type-argument-listopt
+
+#     def _ident_type_arg_list():
+#       ident = self.lex.parse_identifier()
+#       if not ident:
+#         raise DefinitionError("not an ident")
+#       args = self.opt(self._parse_type_argument_list)
+#       m = TypeName('namespace_or_type_name')
+#       m.comps['identifier'] = ident
+#       m.comps['type-argument-list'] = args
+#       m.name = ident
+#       m.form = m.name
+#       if args:
+#         m.form += "<{}>".format(", ".join(str(x) for x in args))
+#       return m
+
+#     # Parse any identifiers separated by .
+#     parts = self._parse_any(_ident_type_arg_list, ".")
+#     print parts
+# # qualified-alias-member:
+# # identifier :: identifier type-argument-listopt
+#     # Check for qualified alias member. Must be identigier with no args
+#     if len(parts) == 1 and not parts[0].comps['type-argument-list']:
+#       if self.opt(lambda: self.swallow_with_ws('::'):
+
+#     def _first():
+#       # identifier type-argument-listopt
+#       names = self._parse_any(_ident_type_arg_list, '.')
+#       ident = ".".join(str(x) for x in names)
+
+#       # ident = self.lex.parse_identifier()
+#       if not ident:
+#         raise DefinitionError("no identity")
+#       args = self.opt(self._parse_type_argument_list)
       
-      t = TypeName("namespace-or-type-name")
-      t.parts.append(ident)
-      t.parts.append(args)
-      t.form = ident
-      if args:
-        t.form += "<{}>".format(", ".join(str(x) for x in args))
-      return t
+#       t = TypeName("namespace-or-type-name")
+#       t.parts.append(ident)
+#       t.parts.append(args)
+#       t.form = ident
+#       if args:
+#         t.form += "<{}>".format(", ".join(str(x) for x in args))
+#       return t
     
-    def _second():
-      raise DefinitionError("Disabled")
-      # namespace-or-type-name . identifier 
-      nmsp = self._parse_namespace_or_type_name()
-      self.swallow_with_ws('.')
-      ident = self.lex._parse_identifier()
-      if not nmsp or not ident:
-        raise DefinitionError()
+#     def _second():
+#       raise DefinitionError("Disabled")
+#       # namespace-or-type-name . identifier 
+#       nmsp = self._parse_namespace_or_type_name()
+#       self.swallow_with_ws('.')
+#       ident = self.lex._parse_identifier()
+#       if not nmsp or not ident:
+#         raise DefinitionError()
       
-      t = TypeName("namespace-or-type-name")
-      t.parts.append(nmsp)
-      t.parts.append(ident)
-      t.form = nmsp + "." + ident
-      return t
+#       t = TypeName("namespace-or-type-name")
+#       t.parts.append(nmsp)
+#       t.parts.append(ident)
+#       t.form = nmsp + "." + ident
+#       return t
 
-    def _third():
-      # type-argument-listopt qualified-alias-member
-      args = self.opt(self._parse_type_argument_list)
-      memb = self._parse_qualified_alias_member()
-      t = TypeName("namespace-or-type-name")
-      t.form = ""
-      if args:
-        t.form += "<{}>".format(", ".join(args))
-      t.form += " " + memb
-      return t
+#     def _third():
+#       # type-argument-listopt qualified-alias-member
+#       args = self.opt(self._parse_type_argument_list)
+#       memb = self._parse_qualified_alias_member()
+#       t = TypeName("namespace-or-type-name")
+#       t.form = ""
+#       if args:
+#         t.form += "<{}>".format(", ".join(args))
+#       t.form += " " + memb
+#       return t
 
-    return self.first_of((_first, _second, _third))
+#     return self.first_of(( _third, _first, _second))
 
   ## B.2.2 Types ####################################
 

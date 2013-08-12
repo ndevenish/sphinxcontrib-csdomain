@@ -92,7 +92,7 @@ class SeparatedNameList(NamedDefinition):
     self.separator = separator
 
   def __str__(self):
-    return self.separator.join(self.parts)
+    return self.separator.join(str(x) for x in self.parts)
 
 class CommaNameList(SeparatedNameList):
   def __init__(self, name):
