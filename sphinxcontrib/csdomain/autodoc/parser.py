@@ -1178,6 +1178,7 @@ class FileParser(object):
       
       if nextmatch == "'":
         expr += u"'" + unicode(self.lex.parse_character_literal())
+        continue
       if nextmatch in '"@':
         literal = self.lex.parse_string_literal()
         if literal:

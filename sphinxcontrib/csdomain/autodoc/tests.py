@@ -123,7 +123,7 @@ class TestAutodoc(unittest.TestCase):
     # print files
     # return
     # pattern = "/Users/xgkkp/dockets/app/Core/Utils/*.cs"
-    for filename in [x for x in files if "EditorBase.cs" in x]:
+    for filename in [x for x in files if "Strings.cs" in x]:
       print "================="
       print "Parsing " + os.path.basename(filename)
       contents = opensafe(filename).read()
@@ -197,3 +197,5 @@ class TestAutodoc(unittest.TestCase):
     self.assertEqual(str(p.lex.parse_string_literal()), "this is a string")
     p = FileParser(r'"this is an \" escaped string"')
     self.assertEqual(str(p.lex.parse_string_literal()), r"this is an \" escaped string")
+    p = FileParser('""')
+    self.assertEqual(str(p.lex.parse_string_literal()), r"")
