@@ -38,7 +38,7 @@ class NamedDefinition(object):
       self.form = form
 
   def adddef(self, name):
-    self.definitions.add(name)
+    self.definitions.append(name)
 
   def __str__(self):
     return self.form

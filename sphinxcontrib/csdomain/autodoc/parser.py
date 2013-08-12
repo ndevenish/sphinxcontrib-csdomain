@@ -677,8 +677,9 @@ class FileParser(object):
       self._parse_property_declaration,
       self._parse_event_declaration,
       self._parse_indexer_declaration,
-      #operator,
+      self._parse_operator_declaration,
       self._parse_constructor_declaration,
+      # destructor
       self._parse_type_declaration,
     ])
     member.namespace = self.namespace.get()
@@ -904,6 +905,78 @@ class FileParser(object):
       self.swallow_with_ws(';')
     m.definitionname = '{}-accessor-declaration'.format(m.accessor)
     return m
+
+  def _parse_operator_declaration(self):
+
+    m = Member("operator-declaration")
+    m.attributes = self._parse_any_attributes()
+    m.modifiers = self._parse_any_modifiers(["public", "static", "extern"])
+    # Are we a conversion operator?
+    ctype = self.opt(lambda: self.swallow_one_of(["implicit", "explicit"]))
+    operator = None
+    if ctype:
+      m.adddef('conversion-operator-declarator')
+      self.swallow_word_and_ws('operator')
+      m.type = self._parse_type()
+      m.name = ctype + " operator"
+    else:
+      m.name = "operator"
+      # Unary or binary.
+      m.type = self._parse_type()
+      self.swallow_word_and_ws('operator')
+      unary_ops = ["+", "-", "!", "~", "++", "--", "true", "false"]
+      binary_ops = ["+", "-", "*", "/", "%", "&", "|", "^", "<<", "right-shift", "==", "!=", ">", "<", ">=", "<="]
+      
+      all_ops = set(unary_ops + binary_ops)
+
+      possible_ops = [x for x in all_ops if self.core.definition[self.core.pos:].startswith(x)]
+      if not possible_ops:
+        raise DefinitionError("Invalid operator")
+      # Sort out what it really was
+      longest = max(len(x) for x in possible_ops)
+      possible_ops = [x for x in possible_ops if len(x) == longest]
+      assert len(possible_ops) == 1
+      operator = possible_ops[0]
+      m.name += operator
+      self.swallow_with_ws(operator)
+
+      # Don't know exactly what type until we parse expressions
+    if not ctype and not operator:
+      raise DefinitionError("Could not parse operator")
+    self.swallow_with_ws('(')
+    # First parameter
+    par1 = FormalParameter("operator-parameter")
+    par1.type = self._parse_type()
+    par1.name = self.lex.parse_identifier()
+    # Now, optional second parameter
+    par2 = None
+    if self.core.skip_with_ws(','):
+      # Second parameter! Must be binary
+      par2 = FormalParameter("operator-parameter")
+      par2.type = self._parse_type()
+      par2.name = self.lex.parse_identifier()
+
+    # now we can resolve what operator type
+    if par2:
+      # binary operator
+      m.adddef("binary-operator-declarator")
+    elif not ctype:
+      # Unary
+      m.adddef("unary-operator-declarator")
+      all_ops = all_ops.intersection(set(unary_ops))
+
+
+    self.swallow_with_ws(')')
+
+    # Parse the body
+    m.body = self.opt(self._parse_block)
+    if not m.body:
+      self.swallow_with_ws(';')
+
+    return m
+
+
+
 
   def _parse_constructor_declaration(self):
     # print "Trying to parse constructor: " + self.cur_line()
