@@ -123,12 +123,12 @@ class TestAutodoc(unittest.TestCase):
     # print files
     # return
     # pattern = "/Users/xgkkp/dockets/app/Core/Utils/*.cs"
-    for filename in [x for x in files if "SiteConfiguration.cs" in x]:
+    for filename in files:#[x for x in files if "SiteConfiguration.cs" in x]:
       print "================="
       print "Parsing " + os.path.basename(filename)
       contents = opensafe(filename).read()
       parser = FileParser(contents)
-      parser._debug = True
+      parser._debug = False
       cu = parser.parse_file()
       summarize_space(cu)
 

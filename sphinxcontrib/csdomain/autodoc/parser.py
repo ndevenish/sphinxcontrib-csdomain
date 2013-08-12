@@ -1158,7 +1158,7 @@ class FileParser(object):
     # if self.core.line_no >= 145 and self._debug:
     #   import pdb
     #   pdb.set_trace()
-    DBG = True
+    DBG = False
     # if self.cur_line().startswith("using (var conn = new NpgsqlC"):
     #   DBG = True
     counts = {"{-}": 0, "(-)": 0, "[-]": 0, "-;-": 0, '-/-': 0, '-"-': 0}
@@ -1186,7 +1186,7 @@ class FileParser(object):
         else:
           expr += self.core.pop_char()
         continue
-      
+
       # If nextmatch is /, try to parse a comment
       if self.lex.parse_comment():
         # print "Parsed comment from balanced expression"
