@@ -586,6 +586,10 @@ class FileParser(object):
     return clike
     
   def _parse_class_declaration(self):
+    # if self._debug and self.core.line_no == 63:
+    #   import pdb
+    #   pdb.set_trace()
+
     clike = self._parse_class_declaration_header()
     self.core.skip_ws()
 
@@ -642,16 +646,23 @@ class FileParser(object):
     name = self._parse_type_parameter()
     self.swallow_with_ws(':')
 
+    constraints = []
     # Attempt any primary constraints
-    constraints = [self._parse_primary_constraint()]
+    primc = self._parse_primary_constraint()
+    if primc:
+      constraints.append(primc)
+
+    # Secondary constraints
     if self.core.skip_with_ws(','):
       constraints.extend(self._parse_any(self._parse_type_name, ','))
 
-    if constraints and str(constraints[-1]) == "new":
+    # might have a new[], and trailing ,
+    self.core.skip_with_ws(',')
+    if self.core.skip_word_and_ws('new'):
       self.swallow_with_ws('(')
       self.swallow_with_ws(')')
-      t = constraints[-1]
-    
+      constraints.append(TypeName('constructor-constraint', 'new()'))
+
     return constraints
 
   def _parse_primary_constraint(self):

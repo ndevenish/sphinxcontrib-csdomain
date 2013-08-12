@@ -87,14 +87,22 @@ class TestAutodoc(unittest.TestCase):
     self.assertTrue(p.core.eof)
 
   def test_whole_folder(self):
-    pattern = "/Users/xgkkp/dockets/app/Core/Utils/UnitDecimal.cs"
+    pattern = "/Users/xgkkp/dockets/app/Core/Utils/ViewModels.cs"
     for filename in glob.glob(pattern):
       print "================="
       print "Parsing " + os.path.basename(filename)
       contents = opensafe(filename).read()
       parser = FileParser(contents)
-      parser._debug = True
+      # parser._debug = True
       cu = parser.parse_file()
       summarize_space(cu)
 
-    
+  def test_generic_new(self):
+    p = FileParser("class Test<T> where T : new() { }")
+    cls = p._parse_class_declaration()
+    self.assertIsNotNone(cls)
+
+  def test_parse_parameter_constraints(self):
+    p = FileParser("where T : new()")
+    p._parse_type_parameter_constraints_clause()
+    self.assertTrue(p.core.eof)
