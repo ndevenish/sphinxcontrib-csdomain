@@ -87,7 +87,7 @@ class TestAutodoc(unittest.TestCase):
     self.assertTrue(p.core.eof)
 
   def test_whole_folder(self):
-    pattern = "/Users/xgkkp/dockets/app/Core/Utils/RuntimeSettings.cs"
+    pattern = "/Users/xgkkp/dockets/app/Core/Utils/ThumbnailCache.cs"
     for filename in glob.glob(pattern):
       print "================="
       print "Parsing " + os.path.basename(filename)

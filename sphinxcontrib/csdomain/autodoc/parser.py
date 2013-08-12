@@ -739,8 +739,11 @@ class FileParser(object):
     # if self._debug and self.core.line_no == 27:
     #   import pdb
     #   pdb.set_trace()
-
     m = self._parse_method_header()
+    print m.name, self.core.line_no
+    if m.name == "ThumbnailFor":
+      import pdb
+      pdb.set_trace()
 
     m.body = self.opt(self._parse_block)
     if not m.body:
@@ -987,8 +990,8 @@ class FileParser(object):
     DBG = False
     # if self.cur_line().startswith("using (var conn = new NpgsqlC"):
     #   DBG = True
-    counts = {"{-}": 0, "(-)": 0, "[-]": 0, "-;-": 0}
-    tomatch = "()[]{};"
+    counts = {"{-}": 0, "(-)": 0, "[-]": 0, "-;-": 0, '-/-': 0}
+    tomatch = "()[]{};/"
     expr = ""
     while True:
       expr += self.core.skip_to_any_char(tomatch)
@@ -999,6 +1002,11 @@ class FileParser(object):
 
       if not nextmatch:
         raise RuntimeError("could not parse expression properly")
+      
+      # If nextmatch is /, try to parse a comment
+      if self.lex.parse_comment():
+        # print "Parsed comment from balanced expression"
+        continue
       # Find the tracking entry corresponding to this
       index = next(x for x in counts.iterkeys() if nextmatch in x)
       if DBG:
@@ -1006,7 +1014,10 @@ class FileParser(object):
       counts[index] -= index.index(nextmatch)-1
       if DBG:
         print "  " + str(counts)
-      
+
+      if nextmatch == ",":
+        import pdb
+        pdb.set_trace()      
       if any(x < 0 for x in counts.itervalues()) \
         or (all(x <= 0 for x in counts.itervalues()) and nextmatch in [',', ';']):
         # print "Breaking expression!"
