@@ -112,6 +112,8 @@ class CoreParser(object):
     return False
 
   def pop_char(self):
+    if self.eof:
+      return None
     ch = self.definition[self.pos]
     self.pos += 1
     return ch

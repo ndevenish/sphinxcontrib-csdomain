@@ -1158,12 +1158,12 @@ class FileParser(object):
     # if self.core.line_no >= 145 and self._debug:
     #   import pdb
     #   pdb.set_trace()
-    DBG = True
+    DBG = False
     # if self.cur_line().startswith("using (var conn = new NpgsqlC"):
     #   DBG = True
     counts = {"{-}": 0, "(-)": 0, "[-]": 0, "-;-": 0, '-/-': 0, '-"-': 0}
-    tomatch = "()[]{};/"
-    expr = ""
+    tomatch = "()[]{};/\"'@"
+    expr = u""
     start_pos = self.core.pos
     while True:
       expr += self.core.skip_to_any_char(tomatch)
@@ -1171,10 +1171,19 @@ class FileParser(object):
       if DBG:
         print "Read part expression: " + repr(expr)
         print "  Next Character:  " + nextmatch
+        print "  Line: {}".format(self.core.line_no)
 
       if not nextmatch:
         raise RuntimeError("could not parse expression properly")
       
+      if nextmatch == "'":
+        expr += u"'" + unicode(self.lex.parse_character_literal())
+      if nextmatch in '"@':
+        literal = self.lex.parse_string_literal()
+        if literal:
+          expr += unicode(literal)
+        continue
+
       # If nextmatch is /, try to parse a comment
       if self.lex.parse_comment():
         # print "Parsed comment from balanced expression"

@@ -114,7 +114,7 @@ class TestAutodoc(unittest.TestCase):
   #   self.assertIsNotNone(f)
 
   def test_whole_module(self):
-    return
+    # return
     files = set()
     for (dirpath, _, filenames) in os.walk("/Users/xgkkp/dockets/app/"):
       for filename in filenames:
@@ -194,6 +194,6 @@ class TestAutodoc(unittest.TestCase):
 
   def test_string_literal(self):
     p = FileParser('"this is a string"')
-    self.assertEqual(p.lex.parse_string_literal(), "this is a string")
+    self.assertEqual(str(p.lex.parse_string_literal()), "this is a string")
     p = FileParser(r'"this is an \" escaped string"')
-    self.assertEqual(p.lex.parse_string_literal(), r"this is an \" escaped string")
+    self.assertEqual(str(p.lex.parse_string_literal()), r"this is an \" escaped string")

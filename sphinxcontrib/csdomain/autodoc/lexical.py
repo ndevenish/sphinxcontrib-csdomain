@@ -363,9 +363,8 @@ class LexicalParser(object):
       # etc etc
       # integer-literal
       # real-literal
-      # character-literal 
-      # string-literal 
-      #operator-or-punctuator
+      self.parse_character_literal,
+      self.parse_string_literal,
       self.parse_operator_or_punctuator,
       ])
     # ident = self._parse_identifier()
@@ -444,27 +443,39 @@ class LexicalParser(object):
     self.core.pos += len(parsed)
     return NamedDefinition("operator-or-punctuator", parsed)
 
+  def parse_character_literal(self):
+    state = self.core.savepos()
+    if not self.core.next_char == "'":
+      return None
+    self.core.pop_char()
+    char = self.core.pop_char()
+    #Any character except ' (U+0027), \ (U+005C), and new-line-character
+    if char in "'\n":
+      raise DefinitionError("ERROR: Badly terminated char literal")
+    if char == "\\":
+      escapes = "'\"\\0abfnrtvxuU"
+      char += self.core.pop_char()
+      if not char[-1] in escapes:
+        raise DefinitionError("Char not in escapes!")
+      # Just read until the next ''
+      char += self.core.skip_to_any_char("'")
+    if not self.core.pop_char() == "'":
+      raise DefinitionError("Badly terminated char")
+    return NamedDefinition("character-literal", char)
+
+
+
   def parse_string_literal(self):
-    # def _parse_all_not_in(terminators):
-    #   return 
-
-      # parsed = ""
-      # state = self.core.savepos()
-      # while not self.core.definition[self.core.pos] in terminators:
-      #   parsed += self.core.definition[self.core.pos]
-      #   self.core.pos += 1
-      # return parsed
-
     def _parse_regular_string_literal():
       escapers = "'\"\0abfnrtvxuU"
-      parsed = ""
+      parsed = u""
       while True:
         parsed += self.core.skip_to_any_char('"\\\n')
         # Why did we stop?
-        halter = self.core.pop_char()
-        if halter == '"':
+        if self.core.next_char == '"':
           break
-        elif halter == "\\":
+        halter = self.core.pop_char()
+        if halter == "\\":
           # Could be an escape (probably)
           if not self.core.next_char in escapers:
             print "ERROR: Non-properly escaped char?"
@@ -474,18 +485,21 @@ class LexicalParser(object):
         elif halter == "\n":
           print "ERROR: Newline in regular string"
           raise DefinitionError("Newline in regular string")
-      return parsed
+      return NamedDefinition("regular-string-literal", parsed)
 
     def _parse_verbatim_string_literal():
-      parsed = ""
+      parsed = u""
       while True:
         parsed += self.core.skip_to_any_char('"')
         # Stopped on ", if the next is one too just add
-        if self.core.next_char == '"':
+
+        if self.core.definition[self.core.pos+2] == '"':
           parsed += '""'
           self.core.pop_char()
           self.core.pop_char()
-      return parsed
+        else:
+          break
+      return NamedDefinition("verbatim-string-literal", parsed)
 
     # regular-string-literal-character: 
     # single-regular-string-literal-character 
@@ -495,14 +509,15 @@ class LexicalParser(object):
 
     state = self.core.savepos()
     next_token = self.core.pop_char()
-    parsed_string = None
+    parsed = None
     if next_token == "@":
       if not self.core.pop_char() == '"':
         self.core.restorepos(state)
         return None
-      parsed_string = _parse_verbatim_string_literal()
+      parsed = _parse_verbatim_string_literal()
     elif next_token == '"':
-      return _parse_regular_string_literal()
+      
+      parsed = _parse_regular_string_literal()
     else:
       self.core.restorepos(state)
       return None
@@ -512,7 +527,8 @@ class LexicalParser(object):
       print "ERROR: Badly terminated stirng"
       raise DefinitionError("Badly terminated string")
 
-    return parsed_string
+    parsed.adddef("string-literal")
+    return parsed
 
 
 
