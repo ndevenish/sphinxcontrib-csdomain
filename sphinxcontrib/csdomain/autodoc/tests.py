@@ -133,3 +133,7 @@ class TestAutodoc(unittest.TestCase):
       # parser._debug = True
       cu = parser.parse_file()
       summarize_space(cu)
+
+  def test_assemblyinfo(self):
+    p = FileParser('[assembly: AssemblyTitle("StylePackCore")]')
+    self.assertIsNotNone(p.parse_file())

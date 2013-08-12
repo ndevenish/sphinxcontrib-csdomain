@@ -1152,7 +1152,9 @@ class FileParser(object):
     if not targets:
       targets = ['field', 'event', 'method', 'param', 'property', 'return', 'type']
     target = self.opt(lambda: self.swallow_one_of(targets))
-    target = None
+    if target:
+      self.swallow_with_ws(':')
+    # target = None
 
     asi = Attribute('attribute-section')
     asi.target = target
