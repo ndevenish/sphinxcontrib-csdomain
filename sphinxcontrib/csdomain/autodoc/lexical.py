@@ -56,6 +56,7 @@ class Whitespace(NamedDefinition):
 
 class Comment(NamedDefinition):
   definitionname = "comment"
+  documentation = None
   def __init__(self, comment = None):
     self.parts = []
     if comment:

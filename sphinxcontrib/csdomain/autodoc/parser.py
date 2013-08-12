@@ -93,9 +93,9 @@ class FileParser(object):
     """Skips a character and any trailing whitespace, but raises DefinitionError if not found"""
     if not self.core.skip_with_ws(char):
       if not self.core.eof:
-        raise DefinitionError("Unexpected token: '{}'; Expected '{}'".format(self.cur_line(), char))
+        raise DefinitionError(u"Unexpected token: '{}'; Expected '{}'".format(self.cur_line(), char))
       else:
-        raise DefinitionError("Unexpected end-of-string; Expected '{}'".format(char))
+        raise DefinitionError(u"Unexpected end-of-string; Expected '{}'".format(char))
 
   def swallow_word_and_ws(self, word):
     # Skip any comments
@@ -105,7 +105,7 @@ class FileParser(object):
       return
     self.core.restorepos(state)
     if not self.core.eof:
-      raise DefinitionError("Unexpected token: '{}'; Expected '{}'".format(self.cur_line(), word))
+      raise DefinitionError(u"Unexpected token: '{}'; Expected '{}'".format(self.cur_line(), word))
     else:
       raise DefinitionError("Unexpected end-of-string; Expected '{}'".format(word))
 
@@ -452,8 +452,9 @@ class FileParser(object):
       return space
     except:
       if self._debug:
-        print "Exception parsing namespace on line {}: {}".format(self.core.line_no, self.core.get_line())
+        print u"Exception parsing namespace on line {}: {}".format(self.core.line_no, self.core.get_line())
       raise
+      # raise ex
     finally:
       self.namespace.pop()
 
@@ -610,7 +611,7 @@ class FileParser(object):
       # if self._debug:
       #   import pdb
       #   pdb.post_mortem()
-      print "Exception parsing class on line {}: {}".format(self.core.line_no, self.core.get_line())
+      print u"Exception parsing class on line {}: {}".format(self.core.line_no, self.core.get_line())
       raise
     finally:
       self.namespace.pop()
