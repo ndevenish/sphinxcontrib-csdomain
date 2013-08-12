@@ -49,7 +49,7 @@ class NamedDefinition(object):
     return self.form
 
   def __repr__(self):
-    return "<{}: {}>".format(self.definitionname, str(self))
+    return u"<{}: {}>".format(self.definitionname, str(self))
 
 class Whitespace(NamedDefinition):
   def __repr__(self):

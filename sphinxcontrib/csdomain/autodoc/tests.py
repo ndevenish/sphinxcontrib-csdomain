@@ -114,7 +114,7 @@ class TestAutodoc(unittest.TestCase):
   #   self.assertIsNotNone(f)
 
   def test_whole_module(self):
-    return
+    # return
     files = set()
     for (dirpath, _, filenames) in os.walk("/Users/xgkkp/dockets/app/"):
       for filename in filenames:
