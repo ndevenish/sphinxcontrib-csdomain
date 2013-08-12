@@ -123,7 +123,7 @@ class TestAutodoc(unittest.TestCase):
     # print files
     # return
     # pattern = "/Users/xgkkp/dockets/app/Core/Utils/*.cs"
-    for filename in files:#[x for x in files if "Settings.Designer.cs" in x]:
+    for filename in [x for x in files if "Screenshotting.cs" in x]:
       print "================="
       print "Parsing " + os.path.basename(filename)
       contents = opensafe(filename).read()
@@ -175,3 +175,8 @@ class TestAutodoc(unittest.TestCase):
     # pdb.set_trace()
     p._parse_interface_type()
     self.assertEquals(p.cur_line(), ".this")
+
+  def test_parse_eof_comment(self):
+    p = FileParser("// Some long comment")
+    p.lex.parse_comment()
+    self.assertTrue(p.core.eof)

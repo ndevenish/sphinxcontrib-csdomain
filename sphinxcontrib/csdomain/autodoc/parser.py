@@ -18,8 +18,10 @@ def opensafe(filename, mode = 'r'):
   if raw.startswith(codecs.BOM_UTF8):
     encoding = 'utf-8-sig'
   else:
-    result = chardet.detect(raw)
-    encoding = result['encoding']
+    print "Warning: Assuming utf-8 when no BOM on " + filename
+    encoding = 'utf-8'
+    # result = chardet.detect(raw)
+    # encoding = result['encoding']
 
   return codecs.open(filename, mode, encoding=encoding)
 
@@ -483,7 +485,7 @@ class FileParser(object):
     #   print "Parsed {} global attributes".format(len(cu.attributes))
 
     cu.members = self._parse_any_namespace_member_declarations()
-    self.core.skip_ws()
+
     if not self.core.eof:
       message = "Finished parsing compilation unit, but not at EOF! At line {}: {}".format(self.core.line_no, self.core.get_line())
       raise DefinitionError(message)
@@ -1261,7 +1263,7 @@ class FileParser(object):
   def _parse_any_method_modifiers(self):
     valid = ('new', 'public', 'protected', 'internal', 'private',
                    'static', 'virtual', 'sealed', 'override', 'abstract',
-                   'extern')
+                   'extern', 'async')
     return self._parse_any_modifiers(valid)
 
   def _parse_any_property_modifiers(self):

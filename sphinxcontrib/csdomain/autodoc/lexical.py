@@ -1,6 +1,7 @@
 # coding: utf-8
 
 import re
+import codecs
 from .xmldoc import XmldocParser
 
 _identifier_re = re.compile(r'(~?\b[a-zA-Z_][a-zA-Z0-9_]*)\b')
@@ -49,7 +50,8 @@ class NamedDefinition(object):
     return self.form
 
   def __repr__(self):
-    return u"<{}: {}>".format(self.definitionname, str(self))
+    return codecs.utf_8_encode(
+      u"<{}: {}>".format(self.definitionname, unicode(self)))[0]
 
 class Whitespace(NamedDefinition):
   def __repr__(self):
@@ -296,7 +298,9 @@ class LexicalParser(object):
     if self.core.skip('//'):
       comment_val = self.core.skip_to_eol()
       # This swallows the whitespace, which we do not want. Reset.
-      self.core.backout()
+      # self.core.backout()
+      if not self.core.eof:
+        self.core.pos = self.core.pos - 1
       comment = Comment(comment_val)
       comment.whitespace = self.parse_whitespace()
       return comment
@@ -478,7 +482,7 @@ def coalesce_comments(members):
 def summarize_space(space, level=0):
   prefix = "  " * level
   doc = bool(space.documentation)
-  info = "{}{}{}".format(prefix, "", repr(space))
+  info = u"{}{}{}".format(prefix, "", codecs.utf_8_decode(repr(space)))
   print "{}{}".format(info.ljust(75), doc)
   if not hasattr(space, "members"):
     return
