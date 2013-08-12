@@ -123,7 +123,7 @@ class TestAutodoc(unittest.TestCase):
     # print files
     # return
     # pattern = "/Users/xgkkp/dockets/app/Core/Utils/*.cs"
-    for filename in [x for x in files if "Strings.cs" in x]:
+    for filename in [x for x in files if "SiteConfiguration.cs" in x]:
       print "================="
       print "Parsing " + os.path.basename(filename)
       contents = opensafe(filename).read()
