@@ -111,6 +111,11 @@ class CoreParser(object):
       return True
     return False
 
+  def pop_char(self):
+    ch = self.definition[self.pos]
+    self.pos += 1
+    return ch
+
   @property
   def next_char(self):
     if not self.eof:

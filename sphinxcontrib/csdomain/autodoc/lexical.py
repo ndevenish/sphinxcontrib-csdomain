@@ -444,6 +444,77 @@ class LexicalParser(object):
     self.core.pos += len(parsed)
     return NamedDefinition("operator-or-punctuator", parsed)
 
+  def parse_string_literal(self):
+    # def _parse_all_not_in(terminators):
+    #   return 
+
+      # parsed = ""
+      # state = self.core.savepos()
+      # while not self.core.definition[self.core.pos] in terminators:
+      #   parsed += self.core.definition[self.core.pos]
+      #   self.core.pos += 1
+      # return parsed
+
+    def _parse_regular_string_literal():
+      escapers = "'\"\0abfnrtvxuU"
+      parsed = ""
+      while True:
+        parsed += self.core.skip_to_any_char('"\\\n')
+        # Why did we stop?
+        halter = self.core.pop_char()
+        if halter == '"':
+          break
+        elif halter == "\\":
+          # Could be an escape (probably)
+          if not self.core.next_char in escapers:
+            print "ERROR: Non-properly escaped char?"
+            raise DefinitionError("Not properly escaped string char")
+          # Eat the next character
+          parsed += halter + self.core.pop_char()
+        elif halter == "\n":
+          print "ERROR: Newline in regular string"
+          raise DefinitionError("Newline in regular string")
+      return parsed
+
+    def _parse_verbatim_string_literal():
+      parsed = ""
+      while True:
+        parsed += self.core.skip_to_any_char('"')
+        # Stopped on ", if the next is one too just add
+        if self.core.next_char == '"':
+          parsed += '""'
+          self.core.pop_char()
+          self.core.pop_char()
+      return parsed
+
+    # regular-string-literal-character: 
+    # single-regular-string-literal-character 
+    # simple-escape-sequence
+    # hexadecimal-escape-sequence 
+    # unicode-escape-sequence
+
+    state = self.core.savepos()
+    next_token = self.core.pop_char()
+    parsed_string = None
+    if next_token == "@":
+      if not self.core.pop_char() == '"':
+        self.core.restorepos(state)
+        return None
+      parsed_string = _parse_verbatim_string_literal()
+    elif next_token == '"':
+      return _parse_regular_string_literal()
+    else:
+      self.core.restorepos(state)
+      return None
+
+    # Eat the next token, a "
+    if not self.core.pop_char() == '"':
+      print "ERROR: Badly terminated stirng"
+      raise DefinitionError("Badly terminated string")
+
+    return parsed_string
+
+
 
 
 def coalesce_comments(members):

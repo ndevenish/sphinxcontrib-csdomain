@@ -1158,10 +1158,10 @@ class FileParser(object):
     # if self.core.line_no >= 145 and self._debug:
     #   import pdb
     #   pdb.set_trace()
-    DBG = False
+    DBG = True
     # if self.cur_line().startswith("using (var conn = new NpgsqlC"):
     #   DBG = True
-    counts = {"{-}": 0, "(-)": 0, "[-]": 0, "-;-": 0, '-/-': 0}
+    counts = {"{-}": 0, "(-)": 0, "[-]": 0, "-;-": 0, '-/-': 0, '-"-': 0}
     tomatch = "()[]{};/"
     expr = ""
     start_pos = self.core.pos

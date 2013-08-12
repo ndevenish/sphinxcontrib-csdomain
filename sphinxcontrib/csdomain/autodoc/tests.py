@@ -114,7 +114,7 @@ class TestAutodoc(unittest.TestCase):
   #   self.assertIsNotNone(f)
 
   def test_whole_module(self):
-    # return
+    return
     files = set()
     for (dirpath, _, filenames) in os.walk("/Users/xgkkp/dockets/app/"):
       for filename in filenames:
@@ -123,7 +123,7 @@ class TestAutodoc(unittest.TestCase):
     # print files
     # return
     # pattern = "/Users/xgkkp/dockets/app/Core/Utils/*.cs"
-    for filename in [x for x in files if "Screenshotting.cs" in x]:
+    for filename in [x for x in files if "EditorBase.cs" in x]:
       print "================="
       print "Parsing " + os.path.basename(filename)
       contents = opensafe(filename).read()
@@ -180,3 +180,20 @@ class TestAutodoc(unittest.TestCase):
     p = FileParser("// Some long comment")
     p.lex.parse_comment()
     self.assertTrue(p.core.eof)
+
+  def testfailingdependencyprop(self):
+    return
+    # p = FileParser('public static readonly DependencyProperty IconProperty = DependencyProperty.Register("Icon", typeof(Uri), typeof(EditorBase), new PropertyMetadata(new Uri("pack://application:,,,/StylePack;component/StylePack.ico")));')
+    p = FileParser('IconProperty = DependencyProperty.Register("Icon", typeof(Uri), typeof(EditorBase), new PropertyMetadata(new Uri("pack://application:,,,/StylePack;component/StylePack.ico")));')
+
+    import pdb
+    pdb.set_trace()
+
+    p._parse_variable_declarator()
+    self.assertTrue(p.core.eof)
+
+  def test_string_literal(self):
+    p = FileParser('"this is a string"')
+    self.assertEqual(p.lex.parse_string_literal(), "this is a string")
+    p = FileParser(r'"this is an \" escaped string"')
+    self.assertEqual(p.lex.parse_string_literal(), r"this is an \" escaped string")
