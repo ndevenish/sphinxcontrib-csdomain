@@ -123,7 +123,7 @@ class TestAutodoc(unittest.TestCase):
     # print files
     # return
     # pattern = "/Users/xgkkp/dockets/app/Core/Utils/*.cs"
-    for filename in [x for x in files if "Settings.Designer.cs" in x]:
+    for filename in files:#[x for x in files if "Settings.Designer.cs" in x]:
       print "================="
       print "Parsing " + os.path.basename(filename)
       contents = opensafe(filename).read()
@@ -153,8 +153,9 @@ class TestAutodoc(unittest.TestCase):
     p._parse_type_name()
     self.assertTrue(p.core.eof)
 
-  # def test_crazy_assemblyinfo(self):
-  #   p = FileParser("[global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]")
-  #   import pdb
-  #   pdb.set_trace()
-  #   self.assertIsNotNone(p._parse_global_attribute_section())
+  def test_property_generic(self):
+    p = FileParser("SomeType<string> PropertyName { get; }")
+    # import pdb
+    # pdb.set_trace()
+    p._parse_property_declaration()
+    self.assertTrue(p.core.eof)

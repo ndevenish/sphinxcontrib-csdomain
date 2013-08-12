@@ -557,7 +557,7 @@ class FileParser(object):
       self.swallow_with_ws('=')
       namespace = self._parse_namespace_or_type_name()
 
-      self.swallow_character_and_ws(';')
+      self.swallow_with_ws(';')
       return (namespace, ident)
     except DefinitionError:
       self.restorepos(state)
