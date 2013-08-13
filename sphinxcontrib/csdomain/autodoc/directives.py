@@ -121,7 +121,9 @@ class CSAutodoc(Directive):
   required_arguments = 1
   optional_arguments = 0
   final_argument_whitespace = True
-  option_spec = {}
+  option_spec = {
+    'all_members': directives.flag,
+  }
 
   def run(self):
     env = self.state.document.settings.env
@@ -211,7 +213,11 @@ class CSAutodoc(Directive):
     lines.append("")
     
     # Now, iterate through all members with documentation
-    for member in (x for x in obj.members if x.documentation):
+    members = (x for x in obj.members if x.documentation)
+    if "all_members" in self.options:
+      members = obj.members
+
+    for member in members:
       lines.extend(self.rest_for_member(member))
       lines.append("")
 
