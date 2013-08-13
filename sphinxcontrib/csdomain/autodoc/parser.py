@@ -188,8 +188,16 @@ class FileParser(object):
       m.comps['identifier'] = ident
       m.comps['identifier_qual'] = ident_q
       m.comps['type-argument-list'] = args
-      m.name = self.core.definition[startpos:self.core.pos]
-      m.form = self.core.definition[startpos:self.core.pos]
+      # Need to reconstruct...
+
+      name = str(ident)
+      if ident_q:
+        name += "::" + str(ident_q)
+      if args:
+        name += "<" + ", ".join(str(x) for x in args.parts) + ">"
+
+      m.name = name
+      m.form = name
       return m
 
     parts = self._parse_any(_parse_single_part, ".")

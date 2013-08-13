@@ -195,3 +195,16 @@ class TestAutodoc(unittest.TestCase):
     self.assertEqual(str(p.lex.parse_string_literal()), r"this is an \" escaped string")
     p = FileParser('""')
     self.assertEqual(str(p.lex.parse_string_literal()), r"")
+
+  def test_misparse_propertyname(self):
+    p = FileParser("Property\n{")
+    # import pdb
+    # pdb.set_trace()
+    nam = p._parse_namespace_or_type_name()
+    self.assertEqual(str(nam), "Property")
+
+    p = FileParser("string Property\n{ get; }")
+    prop = p._parse_property_declaration()
+    self.assertEqual(str(prop.name), "Property")
+    self.assertTrue(p.core.eof)
+

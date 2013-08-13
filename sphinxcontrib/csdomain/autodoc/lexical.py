@@ -240,6 +240,9 @@ class Property(Member):
     sig.append(self.name)
     sig.append("{")
 
+    # if "Username" in str(self.name):
+    #   import pdb
+    #   pdb.set_trace()
     # getter = next(x for x in self.accessors if x.accessor == "get")
     if self.getter:
       sig.extend(self.getter.modifiers)
