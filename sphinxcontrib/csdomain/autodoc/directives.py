@@ -152,9 +152,10 @@ class CSAutodoc(Directive):
 
     # Check the timestamp of the file this came from
     source = obj.compilation_unit
+    self.state.document.settings.record_dependencies.add(source)
     # rescan this file (will not, if timestamps corrent)
     if _parse_source_file(source, env.domaindata['cs']):
-      obj = _find_class_by_name(todoc)      
+      obj = _find_class_by_name(todoc)
     # if not os.path.isfile(source) or os.stat(source).st_mtime > modules[source]:
     #   # Re-parse, and re-find the class
     #   print "Re-scanning source file for {}".format(obj.name)
