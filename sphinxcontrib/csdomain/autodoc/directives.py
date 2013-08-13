@@ -1,5 +1,6 @@
 # coding: utf-8
 
+from docutils.parsers.rst import directives
 from sphinx.util.compat import Directive
 import os
 from docutils import nodes
@@ -51,6 +52,8 @@ def _parse_source_file(filename, domaindata):
   # Strip out all dictionary contents for this file
   _remove_source_file(filename, domaindata)
 
+  print "C# Autodoc Parsing {}".format(filename)
+
   contents = opensafe(filename).read()
   parser = FileParser(contents)
   cu = parser.parse_file()
@@ -72,7 +75,10 @@ class CSAutodocModule(Directive):
   required_arguments = 1
   optional_arguments = 0
   final_argument_whitespace = True
-  option_spec = {}
+
+  option_spec = {
+      'tree': directives.flag,
+  }
 
   def run(self):
     env = self.state.document.settings.env
@@ -81,10 +87,25 @@ class CSAutodocModule(Directive):
     # print "Classes in domain data: {}".format(len(domaindata['classes']))
 
     rel_filename, filename = env.relfn2path(self.arguments[0])
-    
-    paths = glob.glob(filename)
+
+    tree_opt = 'tree' in self.options
+
+    paths = []
+    if not tree_opt:
+      paths = glob.glob(filename)
+    else:
+
+      files = set()
+      for filepath in glob.glob(filename):
+        for (dirpath, _, filenames) in os.walk(filepath):
+          for filename in filenames:
+            if filename.endswith(".cs"):
+              files.add(os.path.join(dirpath, filename))
+      # print "Tree-walked: {}".format(files)
+      paths = files
+
     if not paths:
-      raise IOError("Could not read any autodoc modules {}".format(path))
+      raise IOError("Could not read any autodoc modules {}".format(paths))
 
     # Read these files now
     for filename in paths:
@@ -114,6 +135,7 @@ class CSAutodoc(Directive):
     print "Asked to document: " + todoc
 
     def _find_class_by_name(name):
+      # print classes.keys()
       # Search the namespace dictionary for a class with this name
       # print "All Classes: " + str(", ".join(classes.keys()))
       # Look for a class with this name
