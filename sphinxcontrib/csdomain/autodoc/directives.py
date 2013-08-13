@@ -6,6 +6,62 @@ from docutils import nodes
 from docutils.statemachine import ViewList
 from xml.etree.ElementTree import ParseError
 from .parser import FileParser, opensafe
+import glob
+
+def _remove_source_file(filename, domaindata):
+  """Remove all references to a source file"""
+  namespaces = domaindata['namespaces']
+  classes = domaindata['classes']
+  modules = domaindata['modules']
+  if modules.has_key(filename):
+    del modules[filename]
+  to_remove = []
+  for entry in (x for x in classes.itervalues() if x.compilation_unit == filename):
+    to_remove.append(entry)
+    namespaces[str(entry.namespace)].remove(entry)
+  for entry in to_remove:
+    full_name = ".".join([str(entry.namespace), str(entry.name)])
+    del classes[full_name]
+  if to_remove:
+    print "Removed classes " + str([x.name for x in to_remove])
+
+def _parse_source_file(filename, domaindata):
+  """Parse, or re-parse, a source file. Returns a bool indicating changes"""
+  namespaces = domaindata['namespaces']
+  classes = domaindata['classes']
+  modules = domaindata['modules']
+  
+  # import pdb
+  # pdb.set_trace()
+
+  if not os.path.isfile(filename):
+    # Just remove
+    _remove_source_file(filename)
+    return True
+
+  stat = os.stat(filename)
+  mtime = max(stat.st_mtime, stat.st_ctime)
+
+  # If we have already parsed, check if we need to again
+  if filename in modules:
+    # Skip unchanged files
+    if mtime <= modules[filename]:
+      return False
+
+  # Strip out all dictionary contents for this file
+  _remove_source_file(filename, domaindata)
+
+  contents = opensafe(filename).read()
+  parser = FileParser(contents)
+  cu = parser.parse_file()
+  modules[filename] = mtime
+  # Append every class to the namespaces dictionary
+  for cls in cu.iter_classes():
+    cls.compilation_unit = filename
+    namespaces[str(cls.namespace)].append(cls)
+    classes[".".join([str(cls.namespace), str(cls.name)])] = cls
+
+  return True
 
 class CSAutodocModule(Directive):
   """
@@ -20,20 +76,21 @@ class CSAutodocModule(Directive):
 
   def run(self):
     env = self.state.document.settings.env
+    domaindata = env.domaindata['cs']
 
+    # print "Classes in domain data: {}".format(len(domaindata['classes']))
 
     rel_filename, filename = env.relfn2path(self.arguments[0])
-    # print rel_filename, filename
     
-    path = filename
-    if not os.path.isfile(path):
-      raise IOError("Could not read autodoc file {}".format(path))
+    paths = glob.glob(filename)
+    if not paths:
+      raise IOError("Could not read any autodoc modules {}".format(path))
 
-    # for fn in self.filename_set:
-    self.state.document.settings.record_dependencies.add(path)
+    # Read these files now
+    for filename in paths:
+      _parse_source_file(filename, domaindata)
+      self.state.document.settings.record_dependencies.add(filename)
 
-    print "Set Autodoc path: " + path
-    env.temp_data['cs:auto:module'] = path
     return []
 
 class CSAutodoc(Directive):
@@ -47,21 +104,42 @@ class CSAutodoc(Directive):
 
   def run(self):
     env = self.state.document.settings.env
-    path = env.temp_data["cs:auto:module"]
+    # path = env.temp_data["cs:auto:module"]
 
-    contents = opensafe(path).read()
-    parser = FileParser(contents)
-    cu = parser.parse_file()
-    # print "Parsed from file: " + repr(cu)
+    namespaces = env.domaindata['cs']['namespaces']
+    classes = env.domaindata['cs']['classes']
+    modules = env.domaindata['cs']['modules']
 
     todoc = self.arguments[0]
     print "Asked to document: " + todoc
-    # Look for a class with this name
-    potentials = [x for x in cu.iter_classes() if x.name == todoc]
-    if len(potentials) != 1:
-      print "ERROR: could not find class " + todoc
 
-    obj = potentials[0]
+    def _find_class_by_name(name):
+      # Search the namespace dictionary for a class with this name
+      # print "All Classes: " + str(", ".join(classes.keys()))
+      # Look for a class with this name
+      potential_names = [x for x in classes.iterkeys() if x.endswith(todoc)]
+      potentials = [classes[x] for x in potential_names if classes[x].name == todoc]
+      # print "Potentials: " + str(potentials)
+      if len(potentials) == 0:
+        print "ERROR: could not find class " + todoc
+      elif len(potentials) > 1:
+        print "ERROR: could not find unique class " + todoc
+      return potentials[0]
+
+    obj = _find_class_by_name(todoc)
+
+    # Check the timestamp of the file this came from
+    source = obj.compilation_unit
+    # rescan this file (will not, if timestamps corrent)
+    if _parse_source_file(source, env.domaindata['cs']):
+      obj = _find_class_by_name(todoc)      
+    # if not os.path.isfile(source) or os.stat(source).st_mtime > modules[source]:
+    #   # Re-parse, and re-find the class
+    #   print "Re-scanning source file for {}".format(obj.name)
+    #   _parse_source_file(source, env.domaindata['cs'])
+    #   obj = _find_class_by_name(todoc)      
+    #   # We need to reparse this file.
+
     # print obj.signature()
     # print documentation
 

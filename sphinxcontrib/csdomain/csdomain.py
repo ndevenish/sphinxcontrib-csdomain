@@ -18,6 +18,8 @@ from sphinx import addnodes
 from .parser import DefinitionParser, DefinitionError
 from .types import TypeInfo, MethodInfo, PropertyInfo, ClassInfo
 
+from collections import defaultdict
+
 def valid_identifier(string):
   return _identifier_re.match(string) is not None
 
@@ -394,6 +396,9 @@ class CSharpDomain(Domain):
   }
   initial_data = {
       'objects': {},  # fullname -> docname, objtype
+      'modules': {},
+      'namespaces': defaultdict(list),
+      'classes': {},
   }
 
   def find_obj(self, env, namespace, typ, target, node):
