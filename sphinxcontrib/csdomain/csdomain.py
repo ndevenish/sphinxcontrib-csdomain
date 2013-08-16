@@ -387,6 +387,7 @@ class CSharpDomain(Domain):
     'interface':  CSXRefRole(),
     'method':     CSXRefRole(),
     'property':   CSXRefRole(),
+    'namespace':  CSXRefRole(),
     
       # 'func' :  CXRefRole(fix_parens=True),
       # 'member': CXRefRole(),
