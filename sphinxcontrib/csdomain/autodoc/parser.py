@@ -607,7 +607,9 @@ class FileParser(object):
 
   def _parse_type_declaration(self):
     return self.first_of([
-      self._parse_class_declaration
+      # Handles class, struct, interface, enum
+      self._parse_class_declaration,
+      self._parse_delegate_declaration,
     ])
     # class-declaration
     # struct-declaration
@@ -1153,6 +1155,22 @@ class FileParser(object):
     self.core.skip_with_ws(',')
     return m
 
+  ## B.2.12 Delegates #################################
+
+  def _parse_delegate_declaration(self):
+    d = NamedDefinition("delegate-declaration")
+    d.attributes = self._parse_any_attributes()
+    d.modifiers = self._parse_any_modifiers(["new", "public", "protected", "internal", "private"])
+    self.swallow_word_and_ws("delegate")
+    d.return_type = self._parse_return_type()
+    d.name = self.lex.parse_identifier()
+    d.params = self.opt(self._parse_type_parameter_list)
+    self.swallow_with_ws("(")
+    d.params = self._parse_formal_parameter_list()
+    self.swallow_with_ws(")")
+    d.constraints = self._parse_any_type_parameter_constraints_clauses()
+    self.swallow_with_ws(";")
+    return d
 
   ## Uncategorised ####################################
 

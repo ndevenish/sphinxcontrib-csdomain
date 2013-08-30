@@ -143,15 +143,23 @@ class CSAutodoc(Directive):
       # Look for a class with this name
       potential_names = [x for x in classes.iterkeys() if x.endswith(todoc)]
       potentials = [classes[x] for x in potential_names if classes[x].name == todoc]
+      if not potentials:
+        potentials = [classes[x] for x in potential_names]
+
       # print "Potentials: " + str(potentials)
       if len(potentials) == 0:
         print "ERROR: could not find class " + todoc
+        self.error("could not find class " + todoc)
+        # print "From: " + str(list(classes.iterkeys()))
+        return None
+        raise ValueError("Could not find class")
       elif len(potentials) > 1:
         print "ERROR: could not find unique class " + todoc
       return potentials[0]
 
     obj = _find_class_by_name(todoc)
-
+    if not obj:
+      return []
     # Check the timestamp of the file this came from
     source = obj.compilation_unit
     self.state.document.settings.record_dependencies.add(source)
