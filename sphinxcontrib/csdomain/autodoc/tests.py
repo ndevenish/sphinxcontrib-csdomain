@@ -232,5 +232,6 @@ class TestAutodoc(unittest.TestCase):
   def test_parameter_array(self):
     p = FileParser('public T Create(params object[] constructorParams)')
     p._parse_method_header()
+    p = FileParser('public static IQueryable<T> Where<T>(this IQueryable<T> source, string predicate, params object[] values)')
+    p._parse_method_header()
 
-    

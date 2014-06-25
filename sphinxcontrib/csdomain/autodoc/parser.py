@@ -894,6 +894,7 @@ class FileParser(object):
 
   def _parse_formal_parameter_list(self):
     fixed = self._parse_any(self._parse_fixed_parameter, ',')
+    self.opt(lambda: self.swallow_with_ws(","))
     param = self._parse_any(self._parse_parameter_array)
     return fixed
 
