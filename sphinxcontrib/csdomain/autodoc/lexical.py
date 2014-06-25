@@ -53,6 +53,9 @@ class NamedDefinition(object):
     return codecs.utf_8_encode(
       u"<{}: {}>".format(self.definitionname, unicode(self)))[0]
 
+class Directive(NamedDefinition):
+  pass
+
 class Whitespace(NamedDefinition):
   def __repr__(self):
     return "<{}>".format(self.definitionname)
@@ -333,7 +336,7 @@ class LexicalParser(object):
     self.core.skip_with_ws("#")
     directive = "#" + self.core.skip_to_eol() 
     self.core.skip_ws()
-    return NamedDefinition("directive-declaration", directive)
+    return Directive("directive-declaration", directive)
 
   def parse_whitespace(self):
     if self.core.skip_ws():
@@ -346,6 +349,9 @@ class LexicalParser(object):
     comment = self.parse_comment()
     if comment:
       return comment
+    pp = self.parse_pp_directive()
+    if pp:
+      return pp
     token = self.parse_token()
     if not token:
       self.fail("Could not parse")
@@ -354,7 +360,7 @@ class LexicalParser(object):
   def parse_next_token(self):
     """Parses input elements until the next token is returned"""
     elem = self.parse_input_element()
-    while type(elem) in (Whitespace, Comment):
+    while type(elem) in (Whitespace, Comment, Directive):
       elem = self.parse_input_element()
     return elem
 

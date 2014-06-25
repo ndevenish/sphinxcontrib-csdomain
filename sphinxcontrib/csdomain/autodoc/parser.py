@@ -667,12 +667,12 @@ class FileParser(object):
     return clike
     
   def _parse_class_declaration(self):
-    #if self._debug and self.core.line_no == 58:
-    #  import pdb
-    #  pdb.set_trace()
-
     clike = self._parse_class_declaration_header()
     self.core.skip_ws()
+
+    #if self._debug and self.core.line_no == 49:
+    #  import pdb
+    #  pdb.set_trace()
 
     clike.namespace = self.namespace.get()
     self.namespace.push(clike.name)
@@ -1159,6 +1159,9 @@ class FileParser(object):
     comment = self.lex.parse_comment()
     if comment:
       return comment
+    pp = self.lex.parse_pp_directive()
+    if pp:
+      return pp
 
     m = Member("enum-member-declaration")
     m.attributes = self._parse_any_attributes()
