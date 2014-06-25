@@ -196,6 +196,13 @@ class TestAutodoc(unittest.TestCase):
     p = FileParser('""')
     self.assertEqual(str(p.lex.parse_string_literal()), r"")
 
+  def test_verbatim_string_literal(self):
+    p = FileParser('@"This is a "" verbatim test"')
+    self.assertEqual(str(p.lex.parse_string_literal()), 'This is a "" verbatim test')
+    
+    p = FileParser('''@"([A-Za-z_][\w]*|-?[0-9.]+|""[^""]+""|->|--|#[^\n]*|[^\s])"''')
+    self.assertEqual(str(p.lex.parse_string_literal()), """([A-Za-z_][\w]*|-?[0-9.]+|""[^""]+""|->|--|#[^\n]*|[^\s])""")
+
   def test_misparse_propertyname(self):
     p = FileParser("Property\n{")
     # import pdb
@@ -214,4 +221,10 @@ class TestAutodoc(unittest.TestCase):
     parser = FileParser(contents)
     parser._debug = True
     # parser.parse_file()
+    cu = parser.parse_file()
+
+  def test_failing_literal(self):
+    contents = opensafe("/Users/xgkkp/stylepack/techdoc/source/_ext/stylepack/Core/Utils/DotParse/ParserBase.cs").read()
+    parser = FileParser(contents)
+    parser._debug = True
     cu = parser.parse_file()

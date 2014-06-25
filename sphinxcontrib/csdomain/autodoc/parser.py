@@ -1204,10 +1204,12 @@ class FileParser(object):
 
   def _parse_balanced_expression(self):
 
-    # if self.core.line_no >= 145 and self._debug:
+    DBG = False
+    #if self.core.line_no == 33 and self._debug:
     #   import pdb
     #   pdb.set_trace()
-    DBG = False
+    #   DBG = True
+    
     # if self.cur_line().startswith("using (var conn = new NpgsqlC"):
     #   DBG = True
     counts = {"{-}": 0, "(-)": 0, "[-]": 0, "-;-": 0, '-/-': 0, '-"-': 0}

@@ -496,7 +496,7 @@ class LexicalParser(object):
         parsed += self.core.skip_to_any_char('"')
         # Stopped on ", if the next is one too just add
 
-        if self.core.definition[self.core.pos+2] == '"':
+        if not self.core.pos+1 == self.core.end and self.core.definition[self.core.pos+1] == '"':
           parsed += '""'
           self.core.pop_char()
           self.core.pop_char()
