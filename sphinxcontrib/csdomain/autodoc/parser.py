@@ -648,7 +648,10 @@ class FileParser(object):
 
     # print "Class type: " + clike.class_type
     clike.name = self.lex.parse_identifier()
-    type_params = self.opt(self._parse_type_parameter_list)
+    if clike.class_type == "interface":
+      type_params = self.opt(self._parse_variant_type_parameter_list)
+    else:
+      type_params = self.opt(self._parse_type_parameter_list)
     clike.definitionname = "{}-declaration".format(clike.class_type)
 
     if self.core.skip_with_ws(':'):
@@ -664,9 +667,9 @@ class FileParser(object):
     return clike
     
   def _parse_class_declaration(self):
-    # if self._debug and self.core.line_no == 63:
-    #   import pdb
-    #   pdb.set_trace()
+    #if self._debug and self.core.line_no == 58:
+    #  import pdb
+    #  pdb.set_trace()
 
     clike = self._parse_class_declaration_header()
     self.core.skip_ws()
@@ -712,6 +715,26 @@ class FileParser(object):
 
   def _parse_type_parameter(self):
     attr = self._parse_any_attributes()
+    ident = self.lex.parse_identifier()
+    return ident
+
+  def _parse_variant_type_parameter_list(self):
+    #if self._debug and self.core.line_no == 58:
+    #  import pdb
+    #  pdb.set_trace()
+    self.swallow_with_ws('<')
+    params = self._parse_any(self._parse_variant_type_parameter, ",")
+    if not params:
+      raise DefinitionError("Incorrect type parameter list")
+    self.swallow_with_ws('>')
+    pl = lexical.TypeParameterList()
+    pl.parts = params
+    return pl
+
+  def _parse_variant_type_parameter(self):
+    # variance annotation: in/out
+    attr = self._parse_any_attributes()
+    variant = self._parse_any_variance_annotation()
     ident = self.lex.parse_identifier()
     return ident
 
@@ -1287,6 +1310,10 @@ class FileParser(object):
     # value = self.core.matched_text
     self.swallow_with_ws(')')
     return [value]
+
+  def _parse_any_variance_annotation(self):
+    valid_modifiers = ('in', 'out')
+    return self._parse_any_modifiers(valid_modifiers)
 
   def _parse_any_class_modifiers(self):
     """Parse any valid class modifiers"""

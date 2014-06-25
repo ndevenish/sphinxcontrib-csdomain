@@ -7,7 +7,7 @@ from .core import CoreParser
 import glob
 import os
 
-SAMPLE = "/Users/xgkkp/dockets/app/Core/Utils/DBPreflight.cs"
+SAMPLE = "/Users/xgkkp/stylepack/app/Core/Utils/DBPreflight.cs"
 
 class TestAutodoc(unittest.TestCase):
   def test_read(self):
@@ -65,7 +65,7 @@ class TestAutodoc(unittest.TestCase):
     doc = c.parse_documentation()
 
   def test_another_read(self):
-    filename = "/Users/xgkkp/dockets/app/Core/Utils/DB.cs"
+    filename = "/Users/xgkkp/stylepack/app/Core/Utils/DB.cs"
     contents = opensafe(filename).read()
     parser = FileParser(contents)
     # parser._debug = True
@@ -116,13 +116,13 @@ class TestAutodoc(unittest.TestCase):
   def test_whole_tree(self):
     return
     files = set()
-    for (dirpath, _, filenames) in os.walk("/Users/xgkkp/dockets/app/"):
+    for (dirpath, _, filenames) in os.walk("/Users/xgkkp/stylepack/app/"):
       for filename in filenames:
         if filename.endswith(".cs"):
           files.add(os.path.join(dirpath, filename))
     # print files
     # return
-    # pattern = "/Users/xgkkp/dockets/app/Core/Utils/*.cs"
+    # pattern = "/Users/xgkkp/stylepack/app/Core/Utils/*.cs"
     for filename in files:#[x for x in files if "SiteConfiguration.cs" in x]:
       print "================="
       print "Parsing " + os.path.basename(filename)
@@ -208,3 +208,10 @@ class TestAutodoc(unittest.TestCase):
     self.assertEqual(str(prop.name), "Property")
     self.assertTrue(p.core.eof)
 
+  def test_failing_file(self):
+    filename = "/Users/xgkkp/stylepack/techdoc/source/_ext/stylepack/Core/Utils/ViewModels.cs"
+    contents = opensafe(filename).read()
+    parser = FileParser(contents)
+    parser._debug = True
+    # parser.parse_file()
+    cu = parser.parse_file()
