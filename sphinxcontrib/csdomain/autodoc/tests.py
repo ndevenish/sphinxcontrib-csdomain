@@ -223,8 +223,8 @@ class TestAutodoc(unittest.TestCase):
     # parser.parse_file()
     cu = parser.parse_file()
 
-  def test_failing_literal(self):
-    contents = opensafe("/Users/xgkkp/stylepack/techdoc/source/_ext/stylepack/Core/Utils/DotParse/ParserBase.cs").read()
-    parser = FileParser(contents)
-    parser._debug = True
-    cu = parser.parse_file()
+  def test_failure_regions(self):
+    contents = opensafe("/Users/xgkkp/stylepack/techdoc/source/_ext/stylepack/Core/Models/Serialization/JsonConvert.cs").read()
+    p = FileParser(contents)
+    p._debug = True
+    p.parse_file()
