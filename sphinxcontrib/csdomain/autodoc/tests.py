@@ -228,3 +228,9 @@ class TestAutodoc(unittest.TestCase):
     p = FileParser(contents)
     p._debug = True
     p.parse_file()
+
+  def test_parameter_array(self):
+    p = FileParser('public T Create(params object[] constructorParams)')
+    p._parse_method_header()
+
+    

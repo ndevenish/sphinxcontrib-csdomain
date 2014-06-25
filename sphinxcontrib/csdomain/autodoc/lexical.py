@@ -130,6 +130,9 @@ class FormalParameter(NamedDefinition):
       parts.append(self.default)
     return (" ".join(str(x) for x in parts))
 
+class ParameterArray(NamedDefinition):
+  pass
+
 class TypeParameterList(SeparatedNameList):
   def __init__(self):
     super(TypeParameterList, self).__init__("type-parameter-list", ", ")

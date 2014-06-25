@@ -859,10 +859,6 @@ class FileParser(object):
     # print "Trying to parse member: " + self.cur_line()
     self._parsing = "method-declaration"
 
-    # if self._debug and self.core.line_no == 147:
-    #   import pdb
-    #   pdb.set_trace()
-
     m = self._parse_method_header()
     m.body = self.opt(self._parse_block)
     if not m.body:
@@ -898,6 +894,7 @@ class FileParser(object):
 
   def _parse_formal_parameter_list(self):
     fixed = self._parse_any(self._parse_fixed_parameter, ',')
+    param = self._parse_any(self._parse_parameter_array)
     return fixed
 
   def _parse_fixed_parameter(self):
@@ -915,6 +912,13 @@ class FileParser(object):
     p.form = p.form.strip()
 
     return p  
+
+  def _parse_parameter_array(self):
+    self._parse_any_attributes()
+    self.swallow_word_and_ws("params")
+    tp = self._parse_type()
+    ide = self.lex.parse_identifier()
+    return ParameterArray(tp)
 
   def _parse_property_declaration(self):
     self._parsing = "property-declaration"
